@@ -46,6 +46,7 @@ beforeEach(() => {
     { id: 't1', title: '完成录屏', due_at: null, priority: 'normal', created_at: detail.created_at },
   ]);
   vi.mocked(api.createRun).mockResolvedValue({ run_id: 'r3', status: 'completed' });
+  vi.mocked(api.streamRunEvents).mockResolvedValue(4);
   vi.mocked(api.decideApproval).mockResolvedValue({ run_id: 'r2', status: 'completed', replayed: false });
 });
 

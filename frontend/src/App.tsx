@@ -55,7 +55,10 @@ export default function App() {
     setBusy(true);
     setError(null);
     try {
-      await api.createRun(activeId, message);
+      const run = await api.createRun(activeId, message);
+      if (run.status !== 'awaiting_approval') {
+        await api.streamRunEvents(run.run_id, 0, () => undefined);
+      }
       await loadDetail(activeId);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '消息发送失败');
