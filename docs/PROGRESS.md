@@ -2,7 +2,7 @@
 
 ## Current gate
 
-G3 - Live Hermes integration complete; awaiting user approval to start G4.
+G4 - Release candidate complete; awaiting Git identity decision and G5 approval.
 
 ## Completed
 
@@ -27,6 +27,10 @@ G3 - Live Hermes integration complete; awaiting user approval to start G4.
 - The authenticated project plugin reads mock orders and blocks todo,
   terminal, write, and patch calls on application approval without modifying
   Hermes core.
+- Hermes is pinned to upstream commit `5445e42b`, and the clean installer
+  verifies critical hashes before creating its isolated environment.
+- Public documentation now covers architecture, AI decisions, startup,
+  limitations, release checks, and the 8–12 minute recording plan.
 
 ## G1 evidence and blockers
 
@@ -63,12 +67,6 @@ G3 - Live Hermes integration complete; awaiting user approval to start G4.
 - A StrictMode probe exposed duplicate first-conversation creation. A regression
   test now wraps the app in StrictMode and the initialization guard prevents it.
 
-## Next action
-
-Obtain user approval for G4. Freeze features, add the pinned clean-install path,
-verify a fresh clone, expand release documentation, scan secrets, and prepare
-the recording checklist. Do not publish the repository before G5 approval.
-
 ## G3 evidence
 
 - Real Hermes UI order query autonomously called `query_mock_business` and
@@ -82,6 +80,26 @@ the recording checklist. Do not publish the repository before G5 approval.
   cancellation race.
 - The relay produced intermittent request timeouts during live validation;
   retries eventually completed. This is recorded as an upstream limitation.
+
+## G4 evidence
+
+- A real local `git clone` with no `.env`, `.vendor`, virtual environment, or
+  Node modules installed successfully from README instructions.
+- That clone passed 39 backend tests, 8 frontend tests, the Vite production
+  build, a 63-file release scan, and actual Mock API/UI startup.
+- The first clean install exposed ambiguous setuptools package discovery. A
+  failing regression test now fixes discovery to `backend/zc_agent_desk`.
+- A second clean clone downloaded immutable Hermes commit `5445e42b`, verified
+  all three locked hashes, installed Hermes 0.18.0, and reported the expected
+  upstream revision.
+- The release scan rejects macOS user paths, key-shaped secrets, missing
+  delivery documents, and a mutable Hermes source reference.
+
+## Next action
+
+Choose a public Git author email and explicitly approve the local history
+rewrite if desired. Then record the 8–12 minute demo, perform the final privacy
+review, and start G5. Do not publish the repository before G5 approval.
 
 ## Recovery protocol
 
