@@ -40,12 +40,12 @@ The live provider model is configured through `MODEL_NAME`, matching the
 developer's existing projects. `OPENAI_MODEL` is not accepted as a second alias
 because duplicate names make interrupted runs and setup instructions ambiguous.
 
-### Lock a source archive by critical hashes
+### Pin the verified upstream commit and critical hashes
 
-The manually downloaded Hermes 0.18.0 archive has no commit metadata. The
-project records the archive version and SHA-256 values for the package manifest,
-API server, and plugin loader. A future Git-based setup may replace this with an
-exact commit after compatibility tests pass.
+The manually downloaded Hermes 0.18.0 archive was matched against upstream
+commit `5445e42b87b9918d5b1bfa9f4eadd8e4bb10ff37`. The project records that
+immutable commit plus SHA-256 values for the package manifest, API server, and
+plugin loader. The setup script verifies all three before installation.
 
 ### Bind relay credentials to a named custom provider
 

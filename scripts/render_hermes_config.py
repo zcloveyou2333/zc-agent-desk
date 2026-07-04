@@ -20,6 +20,11 @@ def required_env(name: str) -> str:
     return value
 
 
+def workspace_root() -> str:
+    configured = os.getenv("TERMINAL_CWD", "").strip()
+    return str(Path(configured).expanduser().resolve()) if configured else str(ROOT)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Render isolated Hermes runtime config")
     parser.add_argument("--output", type=Path, default=ROOT / ".hermes/runtime/config.yaml")
@@ -30,7 +35,7 @@ def main() -> None:
         TEMPLATE.read_text()
         .replace("__MODEL_NAME__", required_env("MODEL_NAME"))
         .replace("__OPENAI_BASE_URL__", required_env("OPENAI_BASE_URL"))
-        .replace("__ZC_AGENT_DESK_ROOT__", required_env("TERMINAL_CWD"))
+        .replace("__ZC_AGENT_DESK_ROOT__", workspace_root())
     )
     config = yaml.safe_load(rendered)
     config["approvals"]["mode"] = "off"

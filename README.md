@@ -7,13 +7,14 @@ multi-turn conversation, model-selected tools, explicit approval for write
 operations, deterministic zero-key operation, and an optional Hermes-backed
 agent runtime.
 
-## Current status
+## What this MVP proves
 
-G3 provides a runnable zero-key Mock vertical slice: persisted conversations,
-ordinary multi-turn replies, mock order lookup, todo approval, SSE event replay,
-Agent Trace, and a responsive React workspace. Hermes mode adds live
-model-selected tools through the isolated sidecar and authenticated project
-plugin bridge.
+The assignment asks for a locally runnable employee chatbot, not a production
+platform. This release therefore concentrates on one complete vertical slice:
+persisted multi-turn chat, agent-selected business tools, approval before a
+write effect, event Trace, failure handling, and zero-key evaluation. Login,
+deployment, RAG, multi-user authorization, and complex orchestration are
+deliberately excluded.
 
 ## Runtime modes
 
@@ -28,12 +29,11 @@ Requirements: Python 3.11 or newer and Node.js 20 or newer. Mock mode does not
 read `OPENAI_API_KEY`, does not start Hermes, and does not require `.env`.
 
 ```bash
-cd /Users/zhangchi/Projects/python/chatbot
+git clone <repository-url> zc-agent-desk
+cd zc-agent-desk
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
-cd frontend
-npm install
-cd ..
+npm --prefix frontend ci
 ./scripts/dev.sh
 ```
 
@@ -52,15 +52,22 @@ Delete that ignored file only when you intentionally want a fresh demo.
 
 ## Start Hermes mode
 
-Hermes mode additionally requires the verified Hermes 0.18 source and virtual
-environment under ignored `.vendor/hermes-agent` and `.vendor/hermes-venv`.
-Copy `.env.example` to `.env` and set `OPENAI_API_KEY`, `OPENAI_BASE_URL`,
-`MODEL_NAME`, and a random `HERMES_API_KEY`. Never paste these values into
-source files or commit `.env`.
+Hermes mode additionally requires Git and the pinned Hermes source. The setup
+script checks out immutable commit `5445e42b`, verifies compatibility-critical
+file hashes, and installs it under ignored `.vendor/` directories.
 
 ```bash
+./scripts/setup_hermes.sh
+cp .env.example .env
+# Edit .env, then generate HERMES_API_KEY with: openssl rand -hex 32
 APP_MODE=hermes ./scripts/dev.sh
 ```
+
+Set `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `MODEL_NAME` for an
+OpenAI-compatible Chat Completions endpoint that supports structured
+`tool_calls`. `HERMES_API_KEY` is a random local bridge secret shared only by
+FastAPI and the loopback Hermes sidecar; it is not a provider key. Never paste
+these values into source files or commit `.env`.
 
 The script renders a secret-free isolated config into `.hermes/runtime`, starts
 FastAPI, starts Hermes, and starts React. On macOS, Hermes runs under the tracked
@@ -85,6 +92,9 @@ dangerous-command approval mode is disabled to avoid double prompts.
 cd frontend
 npm test -- --run
 npm run build
+cd ..
+./scripts/setup_hermes.sh --verify-only  # after Hermes installation
+.venv/bin/python scripts/release_check.py
 ```
 
 The public application API currently includes:
@@ -98,8 +108,16 @@ The public application API currently includes:
 - `POST /api/runs/{run_id}/cancel`
 - `GET /api/todos`
 
-See [the design](docs/DESIGN.md), [decisions](docs/DECISIONS.md), and
-[implementation plan](docs/IMPLEMENTATION_PLAN.md).
+The frontend sends a run request, reconnectable SSE carries normalized events,
+and SQLite is the source of truth for refresh recovery. In Mock mode an
+explicit deterministic router selects tools. In Hermes mode the model selects
+tools; the plugin calls an authenticated FastAPI bridge and blocks write or
+developer actions until approval. Tool results return to the runtime before the
+final assistant response.
+
+See [architecture](docs/ARCHITECTURE.md), [design](docs/DESIGN.md),
+[decisions](docs/DECISIONS.md), [AI collaboration](docs/AI_COLLABORATION.md),
+and the [recording checklist](docs/RECORDING.md).
 
 ## Current limitations
 
@@ -109,6 +127,8 @@ See [the design](docs/DESIGN.md), [decisions](docs/DECISIONS.md), and
 - The third-party relay can be slow or time out; the app records a sanitized
   run failure and never exposes provider diagnostics or credentials.
 - The macOS policy is a local MVP safeguard, not a production security sandbox.
+- Hermes mode depends on a compatible OpenAI-style relay; Mock mode remains the
+  portable evaluation path on every supported platform.
 
 ## Security
 

@@ -21,6 +21,8 @@ Secrets, private prompts, and unrelated machine information are excluded.
 | Developer approvals | Rely on Hermes dangerous-command detection | Rejected | It does not gate every terminal/write/patch call. A project pre-tool hook now applies path validation and application approval to every invocation. |
 | Live Trace | Render every streamed token as a Trace row | Modified | Every delta stays in SQLite/SSE, while consecutive deltas collapse to one visual lifecycle node for recording clarity. |
 | Cancel behavior | Ignore tool proposals that race with cancellation | Rejected | A live run exposed the race. Terminal runs now reject late proposals before emitting approval events, with a regression test. |
+| Hermes reproducibility | Document the manually downloaded archive as sufficient | Modified | The verified archive was matched to upstream commit `5445e42b`; setup now checks out that immutable revision and verifies three critical hashes. |
+| Release readiness | Rely on a one-time manual secret review | Rejected | A tracked release check now fails on macOS user paths, key-shaped strings, missing delivery docs, or a mutable Hermes lock. |
 
 Future entries use the same format: suggestion, adoption/modification/rejection,
 rationale, and concrete verification evidence.
