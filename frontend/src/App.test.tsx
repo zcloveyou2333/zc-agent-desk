@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { StrictMode } from 'react';
 import App from './App';
 import * as api from './api';
 import type { ConversationDetail } from './types';
@@ -66,9 +67,9 @@ it('creates the first conversation when storage is empty', async () => {
   vi.mocked(api.createConversation).mockResolvedValue({ id: 'new', title: '新会话', created_at: detail.created_at });
   vi.mocked(api.getConversation).mockResolvedValue({ ...detail, id: 'new', title: '新会话' });
 
-  render(<App />);
+  render(<StrictMode><App /></StrictMode>);
 
-  await waitFor(() => expect(api.createConversation).toHaveBeenCalledWith('新会话'));
+  await waitFor(() => expect(api.createConversation).toHaveBeenCalledTimes(1));
   expect(await screen.findByRole('heading', { name: '新会话' })).toBeInTheDocument();
 });
 

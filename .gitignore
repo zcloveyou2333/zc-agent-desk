@@ -18,3 +18,5 @@ frontend/test-results/
 frontend/*.tsbuildinfo
 frontend/vite.config.js
 frontend/vite.config.d.ts
+.playwright-cli/
+output/playwright/

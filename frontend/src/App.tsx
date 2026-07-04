@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
 import type { Conversation, ConversationDetail, Todo } from './types';
 import ChatWorkspace from './components/ChatWorkspace';
@@ -12,6 +12,7 @@ export default function App() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const initialized = useRef(false);
 
   const loadDetail = useCallback(async (id: string) => {
     const next = await api.getConversation(id);
@@ -31,6 +32,8 @@ export default function App() {
   }, [activeId, loadDetail]);
 
   useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
     Promise.all([refreshConversations(), api.listTodos().then(setTodos)]).catch((reason) => {
       setError(reason instanceof Error ? reason.message : '载入失败');
     });
