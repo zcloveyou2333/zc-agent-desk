@@ -2,7 +2,7 @@
 
 ## Current gate
 
-G1 - Hermes feasibility complete; awaiting user approval to start G2.
+G2 - Mock vertical slice complete; awaiting user approval to start G3.
 
 ## Completed
 
@@ -15,6 +15,13 @@ G1 - Hermes feasibility complete; awaiting user approval to start G2.
   plus reads under `~/.ssh`.
 - Live relay text, explicit conversation history, structured tool calls, SSE,
   and blocking approval denial have been verified through Hermes `/v1/runs`.
+- FastAPI and SQLite persist conversations, messages, runs, ordered events,
+  approvals, todos, and mock orders.
+- The deterministic Mock Runtime supports ordinary context, existing and
+  missing orders, todo approval/rejection, idempotent replay, cancellation, and
+  SSE replay from `Last-Event-ID`.
+- The selected React enterprise-console UI renders three desktop columns,
+  inline approvals, Trace, and todos, then stacks responsively below 900px.
 
 ## G1 evidence and blockers
 
@@ -41,11 +48,21 @@ G1 - Hermes feasibility complete; awaiting user approval to start G2.
   now explicitly uses `manual` instead of relying on fallback from invalid
   legacy wording `ask`.
 
+## G2 evidence
+
+- Backend G1+G2 suite: 18 tests passed before final combined verification.
+- Frontend API, component, StrictMode regression, and SSE replay suite: 7 tests
+  passed; the Vite production build completed.
+- Real browser acceptance verified `ORD-1001`, an approval-gated todo, exactly
+  one persisted todo, full Trace, refresh restoration, and a 760px viewport.
+- A StrictMode probe exposed duplicate first-conversation creation. A regression
+  test now wraps the app in StrictMode and the initialization guard prevents it.
+
 ## Next action
 
-Obtain user approval for G1, then start G2. Before routine sidecar use, generate
-`HERMES_API_KEY` with `openssl rand -hex 32`; G1 used a local temporary token
-when that value was blank.
+Obtain user approval for G3, then implement the FastAPI-to-Hermes adapter and
+replace the G1 placeholder business-tool bridge. Do not begin G4 release work
+until the live application flow and security tests pass.
 
 ## Recovery protocol
 

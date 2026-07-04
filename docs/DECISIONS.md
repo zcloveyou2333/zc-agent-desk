@@ -60,3 +60,24 @@ explicit.
 Hermes 0.18 supports `manual`, `smart`, and `off`; `ask` is invalid and only
 falls back to `manual` with a warning. The pinned template uses `manual`, and a
 live dangerous-command probe verified request, denial, and run resumption.
+
+### Keep Mock routing deterministic and explicit
+
+Mock mode recognizes the assignment's demonstration intents without calling a
+model. This makes zero-key operation honest and the order, approval, rejection,
+replay, and cancellation tests repeatable. Hermes owns model-selected routing
+only in live mode.
+
+### Use a light enterprise-console interface
+
+Three visual directions were compared. The light blue-gray console was selected
+because business flow, approval state, and Agent Trace are readable to both HR
+and engineering reviewers during an 8–12 minute recording. Desktop uses three
+columns; narrow screens preserve chat priority and stack the inspector.
+
+### Preserve React StrictMode with guarded initialization
+
+Browser acceptance found that an asynchronous empty-state initializer created
+two conversations under StrictMode's development probe. StrictMode remains
+enabled; a synchronous ref guard makes the bootstrap effect run once and a
+regression test verifies that behavior.
