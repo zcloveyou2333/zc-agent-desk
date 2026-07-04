@@ -14,3 +14,7 @@ dev = ["httpx>=0.28,<1", "pytest>=8,<10"]
 [tool.pytest.ini_options]
 pythonpath = ["backend"]
 testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+include = ["zc_agent_desk*"]

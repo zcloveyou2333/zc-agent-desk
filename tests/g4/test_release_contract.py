@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import tomllib
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -41,3 +43,10 @@ def test_environment_example_does_not_require_a_machine_specific_workspace() -> 
     mac_user_prefix = "/" + "Users" + "/"
     assert "TERMINAL_CWD=" + mac_user_prefix not in env_example
     assert "TERMINAL_CWD=" not in env_example
+
+
+def test_backend_package_discovery_is_limited_to_backend_directory() -> None:
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text())
+
+    discovery = config["tool"]["setuptools"]["packages"]["find"]
+    assert discovery == {"where": ["backend"], "include": ["zc_agent_desk*"]}
