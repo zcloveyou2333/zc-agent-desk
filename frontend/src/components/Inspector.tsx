@@ -10,13 +10,18 @@ const labels: Record<string, string> = {
 };
 
 export default function Inspector({ events, todos }: { events: RunEvent[]; todos: Todo[] }) {
+  const displayEvents = events.filter((event, index) => {
+    if (event.type !== 'message.delta') return true;
+    const previous = events[index - 1];
+    return !previous || previous.type !== 'message.delta' || previous.run_id !== event.run_id;
+  });
   return (
     <aside className="inspector">
       <section>
-        <div className="panel-heading"><div><p className="section-label">执行过程</p><h2>Agent Trace</h2></div><span>{events.length} events</span></div>
+        <div className="panel-heading"><div><p className="section-label">执行过程</p><h2>Agent Trace</h2></div><span>{displayEvents.length} events</span></div>
         <div className="trace-list">
-          {events.length === 0 && <p className="empty-state">发送消息后，这里会显示 Agent 生命周期。</p>}
-          {events.map((event) => (
+          {displayEvents.length === 0 && <p className="empty-state">发送消息后，这里会显示 Agent 生命周期。</p>}
+          {displayEvents.map((event) => (
             <div className="trace-row" key={`${event.run_id}-${event.sequence}`}>
               <span className="trace-dot" />
               <div><strong>{labels[event.type] ?? event.type}</strong><small>#{event.sequence} · {String(event.data.tool ?? '')}</small></div>

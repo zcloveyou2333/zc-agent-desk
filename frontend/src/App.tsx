@@ -12,6 +12,7 @@ export default function App() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [runtimeMode, setRuntimeMode] = useState<'mock' | 'hermes'>('mock');
   const initialized = useRef(false);
 
   const loadDetail = useCallback(async (id: string) => {
@@ -34,7 +35,11 @@ export default function App() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    Promise.all([refreshConversations(), api.listTodos().then(setTodos)]).catch((reason) => {
+    Promise.all([
+      refreshConversations(),
+      api.listTodos().then(setTodos),
+      api.getHealth().then((health) => setRuntimeMode(health.mode)),
+    ]).catch((reason) => {
       setError(reason instanceof Error ? reason.message : '载入失败');
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -60,7 +65,11 @@ export default function App() {
     try {
       const run = await api.createRun(activeId, message);
       if (run.status !== 'awaiting_approval') {
-        await api.streamRunEvents(run.run_id, 0, () => undefined);
+        await api.streamRunEvents(run.run_id, 0, (event) => {
+          if (event.type === 'approval.required') {
+            void loadDetail(activeId);
+          }
+        });
       }
       await loadDetail(activeId);
     } catch (reason) {
@@ -88,8 +97,8 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <ConversationRail conversations={conversations} activeId={activeId} onSelect={selectConversation} onCreate={createConversation} />
-      <ChatWorkspace detail={detail} busy={busy} error={error} onSend={sendMessage} onApproval={decide} />
+      <ConversationRail conversations={conversations} activeId={activeId} onSelect={selectConversation} onCreate={createConversation} runtimeMode={runtimeMode} />
+      <ChatWorkspace detail={detail} busy={busy} error={error} onSend={sendMessage} onApproval={decide} runtimeMode={runtimeMode} />
       <Inspector events={events} todos={todos} />
     </div>
   );

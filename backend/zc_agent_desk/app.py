@@ -355,6 +355,8 @@ def create_app(
         run = store.run(run_id)
         if not run:
             raise HTTPException(404, "Run not found")
+        if run["status"] in TERMINAL_STATUSES:
+            raise HTTPException(409, f"Run is already {run['status']}")
         existing = store.approval(run_id)
         if not existing and run["status"] != "awaiting_approval":
             store.add_event(

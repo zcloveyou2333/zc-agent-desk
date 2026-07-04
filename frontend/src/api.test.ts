@@ -3,6 +3,7 @@ import {
   createRun,
   decideApproval,
   getConversation,
+  getHealth,
   listConversations,
   listTodos,
 } from './api';
@@ -67,5 +68,10 @@ describe('API client', () => {
     );
 
     await expect(getConversation('missing')).rejects.toThrow('Run not found');
+  });
+
+  it('reads the active runtime mode', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ status: 'ok', mode: 'hermes' })));
+    await expect(getHealth()).resolves.toEqual({ status: 'ok', mode: 'hermes' });
   });
 });

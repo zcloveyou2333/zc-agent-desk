@@ -32,7 +32,7 @@ export interface Run {
   conversation_id: string;
   status: RunStatus;
   pending_tool: string | null;
-  pending_args: { title: string; priority?: string; due_at?: string } | null;
+  pending_args: Record<string, unknown> | null;
   events: RunEvent[];
 }
 
@@ -58,4 +58,9 @@ export interface ApprovalResult {
   run_id: string;
   status: RunStatus;
   replayed: boolean;
+}
+
+export interface Health {
+  status: string;
+  mode: 'mock' | 'hermes';
 }

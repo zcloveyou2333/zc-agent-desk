@@ -2,6 +2,7 @@ import type {
   ApprovalResult,
   Conversation,
   ConversationDetail,
+  Health,
   RunCreated,
   RunEvent,
   Todo,
@@ -46,6 +47,7 @@ export const decideApproval = (runId: string, decision: 'approve' | 'reject') =>
   });
 
 export const listTodos = () => request<Todo[]>('/api/todos');
+export const getHealth = () => request<Health>('/api/health');
 
 export async function streamRunEvents(
   runId: string,

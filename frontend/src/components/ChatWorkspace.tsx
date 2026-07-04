@@ -8,9 +8,10 @@ interface Props {
   error: string | null;
   onSend: (message: string) => Promise<void>;
   onApproval: (runId: string, decision: 'approve' | 'reject') => Promise<void>;
+  runtimeMode: 'mock' | 'hermes';
 }
 
-export default function ChatWorkspace({ detail, busy, error, onSend, onApproval }: Props) {
+export default function ChatWorkspace({ detail, busy, error, onSend, onApproval, runtimeMode }: Props) {
   const [message, setMessage] = useState('');
 
   async function submit(event: FormEvent) {
@@ -39,7 +40,8 @@ export default function ChatWorkspace({ detail, busy, error, onSend, onApproval 
         {pendingRuns.map((run) => (
           <ApprovalCard
             key={run.id}
-            title={run.pending_args?.title ?? '未命名待办'}
+            tool={run.pending_tool ?? 'unknown_tool'}
+            arguments={run.pending_args ?? {}}
             onDecision={(decision) => onApproval(run.id, decision)}
           />
         ))}
@@ -54,7 +56,7 @@ export default function ChatWorkspace({ detail, busy, error, onSend, onApproval 
           placeholder="试试：查询订单 ORD-1001"
           rows={3}
         />
-        <div><span>Mock 模式 · 不消耗 API Key</span><button disabled={busy || !message.trim()}>{busy ? '处理中…' : '发送'}</button></div>
+        <div><span>{runtimeMode === 'hermes' ? 'Hermes 模式 · 模型自主选择工具' : 'Mock 模式 · 不消耗 API Key'}</span><button disabled={busy || !message.trim()}>{busy ? '处理中…' : '发送'}</button></div>
       </form>
     </main>
   );

@@ -148,6 +148,25 @@ def test_proposal_timeout_does_not_create_todo(tmp_path) -> None:
     assert app.state.store.todos() == []
 
 
+def test_cancelled_run_rejects_late_tool_proposal_without_approval_event(tmp_path) -> None:
+    app = create_app(
+        database_path=tmp_path / "cancelled.sqlite3",
+        mode="hermes",
+        bridge_key="secret",
+    )
+    with TestClient(app) as client:
+        _, run_id = seed_run(app)
+        app.state.store.set_run(run_id, "cancelled")
+        response = client.post(
+            f"/api/internal/runs/{run_id}/proposals",
+            headers={"X-ZC-Bridge-Key": "secret"},
+            json={"tool": "terminal", "arguments": {"command": "pwd"}},
+        )
+
+    assert response.status_code == 409
+    assert app.state.store.events(run_id) == []
+
+
 def test_plugin_uses_session_id_and_bridge_auth(monkeypatch) -> None:
     plugin = load_plugin()
     captured = {}
