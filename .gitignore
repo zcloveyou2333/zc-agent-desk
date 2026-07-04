@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.venv/
+.vendor/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+*.sqlite3
+node_modules/
+dist/
+coverage/
+.superpowers/
+frontend/playwright-report/
+frontend/test-results/
+
