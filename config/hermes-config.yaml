@@ -1,7 +1,13 @@
 model:
-  provider: custom
+  provider: custom:zc-relay
   default: __MODEL_NAME__
   base_url: __OPENAI_BASE_URL__
+
+custom_providers:
+  - name: zc-relay
+    base_url: __OPENAI_BASE_URL__
+    key_env: OPENAI_API_KEY
+    api_mode: chat_completions
 
 plugins:
   enabled:
@@ -18,7 +24,7 @@ terminal:
   cwd: __ZC_AGENT_DESK_ROOT__
 
 approvals:
-  mode: ask
+  mode: manual
   gateway_timeout: 300
 
 gateway:

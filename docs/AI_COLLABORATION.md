@@ -12,6 +12,8 @@ Secrets, private prompts, and unrelated machine information are excluded.
 | Local shell | Treat `cwd` as a sandbox | Rejected | A local shell can leave its starting directory. The project requires a macOS policy probe and honest limitations. |
 | Hermes plugin activation | Set only `HERMES_ENABLE_PROJECT_PLUGINS=1` | Modified | A live discovery probe showed this only enables scanning; `plugins.enabled` is also required, so the project isolates and supplies both settings. |
 | Public environment template | Mirror the private `.env`, including a fake key shaped like a secret | Rejected | The public template uses generic placeholders so secret scanners stay meaningful and provider details are not accidentally published. |
+| Relay authentication | Keep bare `provider: custom` and rely on `OPENAI_API_KEY` fallback | Rejected | Hermes intentionally withholds that credential from third-party hosts. A named provider with `key_env` passed live text and tool-call probes without storing the key. |
+| Approval config | Use conceptual value `ask` | Modified | Hermes 0.18 only supports `manual`, `smart`, and `off`. The template now uses `manual`, verified by a live request-and-deny flow. |
 
 Future entries use the same format: suggestion, adoption/modification/rejection,
 rationale, and concrete verification evidence.

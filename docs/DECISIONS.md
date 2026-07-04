@@ -46,3 +46,17 @@ The manually downloaded Hermes 0.18.0 archive has no commit metadata. The
 project records the archive version and SHA-256 values for the package manifest,
 API server, and plugin loader. A future Git-based setup may replace this with an
 exact commit after compatibility tests pass.
+
+### Bind relay credentials to a named custom provider
+
+Hermes 0.18 protects credentials by refusing to forward the generic
+`OPENAI_API_KEY` from a bare custom provider to a non-OpenAI host. ZC Agent Desk
+uses the named provider `custom:zc-relay` with `key_env: OPENAI_API_KEY`. This
+keeps the secret in the environment while making its intended recipient
+explicit.
+
+### Use Hermes manual approval mode
+
+Hermes 0.18 supports `manual`, `smart`, and `off`; `ask` is invalid and only
+falls back to `manual` with a warning. The pinned template uses `manual`, and a
+live dangerous-command probe verified request, denial, and run resumption.

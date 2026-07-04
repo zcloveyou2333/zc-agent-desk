@@ -19,3 +19,19 @@ def test_local_hermes_auth_is_optional_and_blank_by_default() -> None:
     env_example = (ROOT / ".env.example").read_text()
 
     assert "HERMES_API_KEY=\n" in env_example
+
+
+def test_relay_key_is_explicitly_bound_to_named_custom_provider() -> None:
+    hermes_config = (ROOT / "config" / "hermes-config.yaml").read_text()
+
+    assert "provider: custom:zc-relay" in hermes_config
+    assert "name: zc-relay" in hermes_config
+    assert "key_env: OPENAI_API_KEY" in hermes_config
+    assert "api_key:" not in hermes_config
+
+
+def test_hermes_uses_supported_manual_approval_mode() -> None:
+    hermes_config = (ROOT / "config" / "hermes-config.yaml").read_text()
+
+    assert "mode: manual" in hermes_config
+    assert "mode: ask" not in hermes_config
