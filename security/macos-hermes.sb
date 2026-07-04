@@ -8,6 +8,7 @@
 (allow process*)
 (allow sysctl-read)
 (allow mach-lookup)
+(allow network*)
 (allow file-read*)
 
 ;; Protect common user credential locations even though system files are
@@ -19,4 +20,3 @@
 
 ;; Writes are confined to the checked-out ZC Agent Desk workspace.
 (allow file-write* (subpath (param "WORKSPACE")))
-

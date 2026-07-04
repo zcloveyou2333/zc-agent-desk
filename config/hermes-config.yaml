@@ -1,6 +1,7 @@
 model:
   provider: custom
   default: __MODEL_NAME__
+  base_url: __OPENAI_BASE_URL__
 
 plugins:
   enabled:
@@ -24,5 +25,6 @@ gateway:
   platforms:
     api_server:
       enabled: true
-      host: 127.0.0.1
-      port: 8642
+      extra:
+        host: 127.0.0.1
+        port: 8642

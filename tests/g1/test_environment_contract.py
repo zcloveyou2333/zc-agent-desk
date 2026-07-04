@@ -12,10 +12,10 @@ def test_model_name_matches_existing_project_convention() -> None:
     assert "OPENAI_MODEL=" not in env_example
     assert "__MODEL_NAME__" in hermes_config
     assert "__OPENAI_MODEL__" not in hermes_config
+    assert "__OPENAI_BASE_URL__" in hermes_config
 
 
 def test_local_hermes_auth_is_optional_and_blank_by_default() -> None:
     env_example = (ROOT / ".env.example").read_text()
 
     assert "HERMES_API_KEY=\n" in env_example
-

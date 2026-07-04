@@ -12,5 +12,6 @@ dist/
 coverage/
 .superpowers/
 .hermes/runtime/
+tirith-install-*/
 frontend/playwright-report/
 frontend/test-results/

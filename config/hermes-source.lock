@@ -1,0 +1,6 @@
+version=0.18.0
+source=manual-github-source-archive
+pyproject_sha256=df32d3d22b681cbb5b98a18709bd3c4ec5fbe9e2c20956e9fb4eec84329ba33c
+api_server_sha256=0d77b00135fa235a2cf587c420c6c15e412fb2e616902da197e40583a1f2aa77
+plugin_loader_sha256=f6cedab1eb86b23e8f973859e65835f3fce0f980248ca30309004271d6da82ac
+

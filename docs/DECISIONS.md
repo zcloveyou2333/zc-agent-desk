@@ -39,3 +39,10 @@ developer's personal `~/.hermes` profile.
 The live provider model is configured through `MODEL_NAME`, matching the
 developer's existing projects. `OPENAI_MODEL` is not accepted as a second alias
 because duplicate names make interrupted runs and setup instructions ambiguous.
+
+### Lock a source archive by critical hashes
+
+The manually downloaded Hermes 0.18.0 archive has no commit metadata. The
+project records the archive version and SHA-256 values for the package manifest,
+API server, and plugin loader. A future Git-based setup may replace this with an
+exact commit after compatibility tests pass.

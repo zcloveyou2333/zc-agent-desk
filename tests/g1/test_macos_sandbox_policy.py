@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import platform
+import socket
 import subprocess
+import threading
 from pathlib import Path
 
 import pytest
@@ -65,3 +67,27 @@ def test_policy_denies_reading_ssh_directory() -> None:
     result = sandbox(f"ls {Path.home() / '.ssh'}")
 
     assert result.returncode != 0
+
+
+def test_policy_allows_loopback_network_for_provider_and_sidecar() -> None:
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    port = server.getsockname()[1]
+    accepted = threading.Event()
+
+    def accept_once() -> None:
+        try:
+            connection, _ = server.accept()
+            accepted.set()
+            connection.close()
+        finally:
+            server.close()
+
+    thread = threading.Thread(target=accept_once, daemon=True)
+    thread.start()
+
+    result = sandbox(f"/usr/bin/nc -z 127.0.0.1 {port}")
+
+    assert result.returncode == 0, result.stderr
+    assert accepted.wait(timeout=1)

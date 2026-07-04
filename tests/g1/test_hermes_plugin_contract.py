@@ -53,3 +53,6 @@ def test_hermes_profile_explicitly_enables_the_project_plugin() -> None:
 
     assert "zc-agent-desk" in config["plugins"]["enabled"]
     assert config["terminal"]["cwd"] == "__ZC_AGENT_DESK_ROOT__"
+    api_server = config["gateway"]["platforms"]["api_server"]
+    assert api_server["enabled"] is True
+    assert api_server["extra"] == {"host": "127.0.0.1", "port": 8642}
