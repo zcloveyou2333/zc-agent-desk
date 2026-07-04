@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import sqlite3
 import uuid
@@ -14,6 +15,8 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+
+from .hermes import HermesClient
 
 
 TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
@@ -61,6 +64,7 @@ class Store:
                 CREATE TABLE IF NOT EXISTS runs (
                     id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL,
                     status TEXT NOT NULL, pending_tool TEXT, pending_args TEXT,
+                    upstream_run_id TEXT,
                     created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
                     FOREIGN KEY(conversation_id) REFERENCES conversations(id)
                 );
@@ -90,6 +94,9 @@ class Store:
                    VALUES (?, ?, ?, ?, ?)""",
                 ("ORD-1001", "已发货", "轻量办公背包", 299.0, "2026-07-02T10:00:00+08:00"),
             )
+            run_columns = {row[1] for row in db.execute("PRAGMA table_info(runs)").fetchall()}
+            if "upstream_run_id" not in run_columns:
+                db.execute("ALTER TABLE runs ADD COLUMN upstream_run_id TEXT")
 
     def create_conversation(self, title: str) -> dict[str, Any]:
         item = {"id": uuid.uuid4().hex, "title": title.strip() or "新会话", "created_at": now()}
@@ -140,6 +147,13 @@ class Store:
             db.execute(
                 """UPDATE runs SET status=?, pending_tool=?, pending_args=?, updated_at=? WHERE id=?""",
                 (status, tool, json.dumps(args, ensure_ascii=False) if args else None, now(), run_id),
+            )
+
+    def set_upstream_run(self, run_id: str, upstream_run_id: str) -> None:
+        with self.connect() as db:
+            db.execute(
+                "UPDATE runs SET upstream_run_id=?, updated_at=? WHERE id=?",
+                (upstream_run_id, now(), run_id),
             )
 
     def run(self, run_id: str) -> dict[str, Any] | None:
@@ -263,16 +277,37 @@ def execute_mock(store: Store, conversation_id: str, run_id: str, message: str) 
     return "completed"
 
 
-def create_app(database_path: str | Path = "./data/zc-agent-desk.sqlite3") -> FastAPI:
+def create_app(
+    database_path: str | Path = "./data/zc-agent-desk.sqlite3",
+    *,
+    mode: str | None = None,
+    hermes_client: Any | None = None,
+) -> FastAPI:
     store = Store(Path(database_path))
+    runtime_mode = mode or os.getenv("APP_MODE", "mock")
+    if runtime_mode not in {"mock", "hermes"}:
+        raise ValueError("APP_MODE must be mock or hermes")
+    if runtime_mode == "hermes" and hermes_client is None:
+        hermes_client = HermesClient(
+            os.getenv("HERMES_BASE_URL", "http://127.0.0.1:8642"),
+            os.getenv("HERMES_API_KEY", ""),
+        )
+    tasks: set[asyncio.Task] = set()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         store.initialize()
         yield
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     app = FastAPI(title="ZC Agent Desk API", lifespan=lifespan)
     app.state.store = store
+    app.state.mode = runtime_mode
+    app.state.hermes_client = hermes_client
+    app.state.tasks = tasks
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173"],
@@ -282,7 +317,7 @@ def create_app(database_path: str | Path = "./data/zc-agent-desk.sqlite3") -> Fa
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
-        return {"status": "ok", "mode": "mock"}
+        return {"status": "ok", "mode": runtime_mode}
 
     @app.post("/api/conversations", status_code=201)
     def create_conversation(body: ConversationCreate) -> dict[str, Any]:
@@ -301,13 +336,68 @@ def create_app(database_path: str | Path = "./data/zc-agent-desk.sqlite3") -> Fa
             raise HTTPException(404, "Conversation not found")
         return result
 
+    async def consume_hermes_run(
+        local_run_id: str,
+        conversation_id: str,
+        message: str,
+        history: list[dict[str, str]],
+    ) -> None:
+        try:
+            upstream_run_id = await hermes_client.start_run(
+                message,
+                session_id=local_run_id,
+                conversation_history=history,
+            )
+            store.set_upstream_run(local_run_id, upstream_run_id)
+            async for event in hermes_client.events(upstream_run_id):
+                event_type = event.get("event")
+                if event_type == "message.delta":
+                    store.add_event(local_run_id, "message.delta", {"delta": event.get("delta", "")})
+                elif event_type in {"tool.started", "tool.completed"}:
+                    data = {
+                        key: event[key]
+                        for key in ("tool", "preview", "duration", "error")
+                        if key in event
+                    }
+                    store.add_event(local_run_id, event_type, data)
+                elif event_type == "approval.request":
+                    args = {key: value for key, value in event.items() if key not in {"event", "run_id", "timestamp"}}
+                    store.add_event(local_run_id, "approval.required", args)
+                    store.set_run(local_run_id, "awaiting_approval", str(event.get("tool") or "terminal"), args)
+                elif event_type == "run.completed":
+                    output = str(event.get("output") or "")
+                    store.add_message(conversation_id, "assistant", output)
+                    store.add_event(local_run_id, "message.completed", {"content": output})
+                    store.set_run(local_run_id, "completed")
+                    return
+                elif event_type == "run.failed":
+                    store.add_event(local_run_id, "run.failed", {"message": "Hermes run failed"})
+                    store.set_run(local_run_id, "failed")
+                    return
+        except Exception:
+            if store.run(local_run_id) and store.run(local_run_id)["status"] not in TERMINAL_STATUSES:
+                store.add_event(local_run_id, "run.failed", {"message": "Hermes is unavailable"})
+                store.set_run(local_run_id, "failed")
+
     @app.post("/api/conversations/{conversation_id}/runs", status_code=202)
-    def create_run(conversation_id: str, body: RunCreate) -> dict[str, str]:
+    async def create_run(conversation_id: str, body: RunCreate) -> dict[str, str]:
         if not store.conversation(conversation_id):
             raise HTTPException(404, "Conversation not found")
         store.add_message(conversation_id, "user", body.message)
         run_id = store.create_run(conversation_id)
-        status = execute_mock(store, conversation_id, run_id, body.message)
+        if runtime_mode == "mock":
+            status = execute_mock(store, conversation_id, run_id, body.message)
+        else:
+            history = [
+                {"role": item["role"], "content": item["content"]}
+                for item in store.messages(conversation_id)[:-1]
+            ]
+            task = asyncio.create_task(
+                consume_hermes_run(run_id, conversation_id, body.message, history)
+            )
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
+            status = "running"
         return {"run_id": run_id, "status": status}
 
     @app.get("/api/runs/{run_id}/events")
@@ -363,7 +453,7 @@ def create_app(database_path: str | Path = "./data/zc-agent-desk.sqlite3") -> Fa
         return {"run_id": run_id, "status": "completed", "replayed": False}
 
     @app.post("/api/runs/{run_id}/cancel")
-    def cancel_run(run_id: str) -> dict[str, Any]:
+    async def cancel_run(run_id: str) -> dict[str, Any]:
         run = store.run(run_id)
         if not run:
             raise HTTPException(404, "Run not found")
@@ -371,6 +461,8 @@ def create_app(database_path: str | Path = "./data/zc-agent-desk.sqlite3") -> Fa
         if not replayed:
             if run["status"] in TERMINAL_STATUSES:
                 return {"run_id": run_id, "status": run["status"], "replayed": True}
+            if runtime_mode == "hermes" and run.get("upstream_run_id"):
+                await hermes_client.cancel(run["upstream_run_id"])
             store.set_run(run_id, "cancelled")
         return {"run_id": run_id, "status": "cancelled", "replayed": replayed}
 
