@@ -9,16 +9,18 @@ agent runtime.
 
 ## Current status
 
-G2 provides a runnable zero-key Mock vertical slice: persisted conversations,
+G3 provides a runnable zero-key Mock vertical slice: persisted conversations,
 ordinary multi-turn replies, mock order lookup, todo approval, SSE event replay,
-Agent Trace, and a responsive React workspace. Live Hermes integration remains
-behind the G3 approval gate.
+Agent Trace, and a responsive React workspace. Hermes mode adds live
+model-selected tools through the isolated sidecar and authenticated project
+plugin bridge.
 
 ## Runtime modes
 
 - `mock`: offline, deterministic, and suitable for evaluation without API keys.
 - `hermes`: live OpenAI-compatible Chat Completions through a pinned Hermes
-  sidecar. G1 feasibility is verified; product integration is scheduled for G3.
+  sidecar. The same FastAPI API, SQLite state, approval cards, and Trace UI are
+  used in both modes.
 
 ## Quick start: Mock mode
 
@@ -48,6 +50,34 @@ Useful demo prompts:
 SQLite data is stored at `data/zc-agent-desk.sqlite3` and survives refreshes.
 Delete that ignored file only when you intentionally want a fresh demo.
 
+## Start Hermes mode
+
+Hermes mode additionally requires the verified Hermes 0.18 source and virtual
+environment under ignored `.vendor/hermes-agent` and `.vendor/hermes-venv`.
+Copy `.env.example` to `.env` and set `OPENAI_API_KEY`, `OPENAI_BASE_URL`,
+`MODEL_NAME`, and a random `HERMES_API_KEY`. Never paste these values into
+source files or commit `.env`.
+
+```bash
+APP_MODE=hermes ./scripts/dev.sh
+```
+
+The script renders a secret-free isolated config into `.hermes/runtime`, starts
+FastAPI, starts Hermes, and starts React. On macOS, Hermes runs under the tracked
+`sandbox-exec` policy. On other systems, terminal/file toolsets are omitted by
+the config renderer while the two business tools remain available.
+
+Hermes demo prompts:
+
+- `请查询订单 ORD-1001，并告诉我状态`
+- `请直接使用 create_todo 工具创建待办：检查G3审批。不要调用其他工具。`
+- `请只使用 terminal 工具执行 pwd，不要使用其他工具。`
+
+The second and third prompts pause on an inline approval card. Todo approval
+persists exactly once before Hermes receives the result. Developer-tool
+approval is handled by the project plugin for every invocation; Hermes' native
+dangerous-command approval mode is disabled to avoid double prompts.
+
 ## Verification
 
 ```bash
@@ -76,7 +106,9 @@ See [the design](docs/DESIGN.md), [decisions](docs/DECISIONS.md), and
 - Mock intent routing is intentionally deterministic rather than pretending to
   be a language model.
 - Authentication, deployment, RAG, and multi-user permissions are out of scope.
-- Hermes developer tools and the FastAPI-to-Hermes adapter belong to G3.
+- The third-party relay can be slow or time out; the app records a sanitized
+  run failure and never exposes provider diagnostics or credentials.
+- The macOS policy is a local MVP safeguard, not a production security sandbox.
 
 ## Security
 

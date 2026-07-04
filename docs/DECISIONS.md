@@ -81,3 +81,30 @@ Browser acceptance found that an asynchronous empty-state initializer created
 two conversations under StrictMode's development probe. StrictMode remains
 enabled; a synchronous ref guard makes the bootstrap effect run once and a
 regression test verifies that behavior.
+
+### Correlate plugin calls with the application run ID
+
+FastAPI passes its local run ID as Hermes `session_id`. Hermes forwards that
+value to project tool handlers and hooks, so the authenticated bridge can attach
+approval proposals to the correct persisted run without changing upstream
+Hermes or exposing a second public correlation API.
+
+### Let the project policy own developer-tool approval
+
+Hermes manual approval only covers commands it classifies as dangerous. The
+assignment requires every terminal, write, and patch invocation to pause, so a
+project `pre_tool_call` hook performs path checks and blocks on the application
+approval endpoint. Native approval is set to `off` to prevent duplicate prompts;
+the macOS operating-system policy remains an independent containment layer.
+
+### Treat not-found orders as business results
+
+The internal bridge returns `{found: false}` with HTTP 200 for an unknown order.
+HTTP errors are reserved for authentication and infrastructure failures, so the
+model can distinguish a missing order from an unavailable backend.
+
+### Collapse token deltas in the visual Trace
+
+All deltas remain persisted and replayable, but consecutive `message.delta`
+events render as one “生成回复” lifecycle row. This preserves protocol evidence
+without turning a short live answer into dozens of visually identical rows.

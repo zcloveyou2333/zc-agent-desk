@@ -17,6 +17,10 @@ Secrets, private prompts, and unrelated machine information are excluded.
 | Mock agent behavior | Make mock responses random or model-like | Rejected | Explicit deterministic routing produces honest zero-key behavior and repeatable acceptance tests while preserving the same public run/tool/approval contracts. |
 | Frontend direction | Use a dark developer-terminal aesthetic | Rejected | The selected light enterprise console makes approvals and Trace legible to a mixed HR/engineering audience during recording. |
 | Duplicate initial conversations | Disable React StrictMode | Rejected | A browser probe revealed the duplicate effect. Initialization is guarded and regression-tested while StrictMode remains useful. |
+| Todo integration | Persist directly inside the Hermes plugin | Rejected | The plugin first creates an authenticated blocking proposal. The public approval transaction owns persistence, so rejection and replay cannot create side effects. |
+| Developer approvals | Rely on Hermes dangerous-command detection | Rejected | It does not gate every terminal/write/patch call. A project pre-tool hook now applies path validation and application approval to every invocation. |
+| Live Trace | Render every streamed token as a Trace row | Modified | Every delta stays in SQLite/SSE, while consecutive deltas collapse to one visual lifecycle node for recording clarity. |
+| Cancel behavior | Ignore tool proposals that race with cancellation | Rejected | A live run exposed the race. Terminal runs now reject late proposals before emitting approval events, with a regression test. |
 
 Future entries use the same format: suggestion, adoption/modification/rejection,
 rationale, and concrete verification evidence.

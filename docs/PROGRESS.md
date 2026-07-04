@@ -2,7 +2,7 @@
 
 ## Current gate
 
-G2 - Mock vertical slice complete; awaiting user approval to start G3.
+G3 - Live Hermes integration complete; awaiting user approval to start G4.
 
 ## Completed
 
@@ -22,6 +22,11 @@ G2 - Mock vertical slice complete; awaiting user approval to start G3.
   SSE replay from `Last-Event-ID`.
 - The selected React enterprise-console UI renders three desktop columns,
   inline approvals, Trace, and todos, then stacks responsively below 900px.
+- FastAPI starts Hermes runs asynchronously, mirrors normalized SSE events into
+  SQLite, persists final responses, and forwards cancellation.
+- The authenticated project plugin reads mock orders and blocks todo,
+  terminal, write, and patch calls on application approval without modifying
+  Hermes core.
 
 ## G1 evidence and blockers
 
@@ -60,9 +65,23 @@ G2 - Mock vertical slice complete; awaiting user approval to start G3.
 
 ## Next action
 
-Obtain user approval for G3, then implement the FastAPI-to-Hermes adapter and
-replace the G1 placeholder business-tool bridge. Do not begin G4 release work
-until the live application flow and security tests pass.
+Obtain user approval for G4. Freeze features, add the pinned clean-install path,
+verify a fresh clone, expand release documentation, scan secrets, and prepare
+the recording checklist. Do not publish the repository before G5 approval.
+
+## G3 evidence
+
+- Real Hermes UI order query autonomously called `query_mock_business` and
+  returned `ORD-1001` as shipped.
+- Real `create_todo` paused in the UI, persisted exactly once after approval,
+  returned its result to Hermes, and produced a final assistant response.
+- Real `terminal pwd` paused with command-specific UI; rejection prevented
+  execution and the final response reported the rejected tool result.
+- Browser acceptance found and fixed live-mode labeling, delta Trace flooding,
+  approval-card refresh deadlock, generic approval wording, and a late-proposal
+  cancellation race.
+- The relay produced intermittent request timeouts during live validation;
+  retries eventually completed. This is recorded as an upstream limitation.
 
 ## Recovery protocol
 
