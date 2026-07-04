@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import platform
+from pathlib import Path
 from urllib import error, parse, request
+
+from .policy import DEVELOPER_TOOLS, validate_tool_call
 
 
 QUERY_MOCK_BUSINESS = {
@@ -97,7 +101,41 @@ def create_todo(args: dict, session_id: str = "", **_: object) -> str:
     return json.dumps(response.get("result", {}), ensure_ascii=False)
 
 
+def approve_developer_tool(
+    tool_name: str,
+    args: dict,
+    session_id: str = "",
+    tool_call_id: str = "",
+    **_: object,
+) -> dict | None:
+    if tool_name not in DEVELOPER_TOOLS:
+        return None
+    workspace = Path(os.getenv("TERMINAL_CWD", os.getcwd()))
+    policy_error = validate_tool_call(tool_name, args, workspace, platform.system())
+    if policy_error:
+        return {"action": "block", "message": policy_error}
+    if not session_id:
+        return {"action": "block", "message": "ZC Agent Desk approval requires a run session"}
+    timeout = float(os.getenv("ZC_AGENT_DESK_APPROVAL_TIMEOUT", "310"))
+    try:
+        response = _bridge(
+            f"/api/internal/runs/{parse.quote(session_id, safe='')}/proposals",
+            payload={
+                "tool": tool_name,
+                "arguments": args,
+                "proposal_id": tool_call_id,
+            },
+            timeout=timeout,
+        )
+    except RuntimeError:
+        return {"action": "block", "message": "ZC Agent Desk approval bridge is unavailable"}
+    if response.get("approved"):
+        return None
+    return {"action": "block", "message": "User rejected the developer tool call"}
+
+
 def register(ctx) -> None:
+    ctx.register_hook("pre_tool_call", approve_developer_tool)
     ctx.register_tool(
         name="query_mock_business",
         toolset="zc-agent-desk",

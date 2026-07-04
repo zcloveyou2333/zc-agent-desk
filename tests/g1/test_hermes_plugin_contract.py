@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import yaml
@@ -14,17 +15,24 @@ HERMES_CONFIG = PROJECT_ROOT / "config" / "hermes-config.yaml"
 class RecordingContext:
     def __init__(self) -> None:
         self.tools: dict[str, dict] = {}
+        self.hooks: dict[str, object] = {}
 
     def register_tool(self, **definition) -> None:
         self.tools[definition["name"]] = definition
 
+    def register_hook(self, name, callback) -> None:
+        self.hooks[name] = callback
+
 
 def load_plugin_module():
     spec = importlib.util.spec_from_file_location(
-        "zc_agent_desk_hermes_plugin", PLUGIN_ROOT / "__init__.py"
+        "zc_agent_desk_hermes_plugin",
+        PLUGIN_ROOT / "__init__.py",
+        submodule_search_locations=[str(PLUGIN_ROOT)],
     )
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -46,6 +54,7 @@ def test_plugin_registers_structured_business_tools() -> None:
     todo_schema = context.tools["create_todo"]["schema"]
     assert query_schema["parameters"]["required"] == ["order_id"]
     assert todo_schema["parameters"]["required"] == ["title"]
+    assert "pre_tool_call" in context.hooks
 
 
 def test_hermes_profile_explicitly_enables_the_project_plugin() -> None:

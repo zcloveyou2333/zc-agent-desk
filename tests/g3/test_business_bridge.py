@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 import threading
 import time
 from pathlib import Path
@@ -15,9 +16,12 @@ PLUGIN = Path(__file__).resolve().parents[2] / ".hermes/plugins/zc-agent-desk/__
 
 
 def load_plugin():
-    spec = importlib.util.spec_from_file_location("zc_bridge_plugin", PLUGIN)
+    spec = importlib.util.spec_from_file_location(
+        "zc_bridge_plugin", PLUGIN, submodule_search_locations=[str(PLUGIN.parent)]
+    )
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -181,3 +185,33 @@ def test_plugin_uses_session_id_and_bridge_auth(monkeypatch) -> None:
     assert captured["key"] == "bridge-secret"
     assert captured["body"]["tool"] == "create_todo"
     assert result == {"created": True, "title": "插件待办"}
+
+
+def test_developer_tool_hook_waits_for_bridge_decision(monkeypatch, tmp_path) -> None:
+    plugin = load_plugin()
+    monkeypatch.setenv("TERMINAL_CWD", str(tmp_path))
+    calls = []
+
+    def approved(path, *, payload=None, timeout=10):
+        calls.append((path, payload, timeout))
+        return {"approved": True, "result": {"allowed": True}}
+
+    monkeypatch.setattr(plugin, "_bridge", approved)
+    assert plugin.approve_developer_tool(
+        "write_file",
+        {"path": "notes.md", "content": "safe"},
+        session_id="local-run",
+        tool_call_id="call-1",
+    ) is None
+    assert calls[0][0].endswith("/api/internal/runs/local-run/proposals")
+    assert calls[0][1]["proposal_id"] == "call-1"
+
+    monkeypatch.setattr(
+        plugin,
+        "_bridge",
+        lambda *args, **kwargs: {"approved": False, "result": {"reason": "rejected"}},
+    )
+    blocked = plugin.approve_developer_tool(
+        "terminal", {"command": "pwd"}, session_id="local-run"
+    )
+    assert blocked == {"action": "block", "message": "User rejected the developer tool call"}

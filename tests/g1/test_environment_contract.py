@@ -30,8 +30,9 @@ def test_relay_key_is_explicitly_bound_to_named_custom_provider() -> None:
     assert "api_key:" not in hermes_config
 
 
-def test_hermes_uses_supported_manual_approval_mode() -> None:
+def test_project_policy_owns_developer_tool_approval() -> None:
     hermes_config = (ROOT / "config" / "hermes-config.yaml").read_text()
 
-    assert "mode: manual" in hermes_config
+    assert "mode: off" in hermes_config
+    assert "mode: manual" not in hermes_config
     assert "mode: ask" not in hermes_config
