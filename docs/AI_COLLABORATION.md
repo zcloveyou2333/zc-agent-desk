@@ -10,7 +10,7 @@ Secrets, private prompts, and unrelated machine information are excluded.
 | Mock mode | Skip mock because a live key exists | Rejected | Zero-key operation is an explicit assignment requirement and is needed for deterministic tests. |
 | Write tools | Execute todo creation immediately | Rejected | A write effect must pause before persistence and record approval or rejection. |
 | Local shell | Treat `cwd` as a sandbox | Rejected | A local shell can leave its starting directory. The project requires a macOS policy probe and honest limitations. |
+| Hermes plugin activation | Set only `HERMES_ENABLE_PROJECT_PLUGINS=1` | Modified | A live discovery probe showed this only enables scanning; `plugins.enabled` is also required, so the project isolates and supplies both settings. |
 
 Future entries use the same format: suggestion, adoption/modification/rejection,
 rationale, and concrete verification evidence.
-

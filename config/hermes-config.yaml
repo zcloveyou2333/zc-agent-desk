@@ -1,0 +1,29 @@
+model:
+  provider: custom
+  default: __OPENAI_MODEL__
+
+plugins:
+  enabled:
+    - zc-agent-desk
+
+toolsets:
+  enabled:
+    - zc-agent-desk
+    - terminal
+    - file
+
+terminal:
+  environment: local
+  cwd: __ZC_AGENT_DESK_ROOT__
+
+approvals:
+  mode: ask
+  gateway_timeout: 300
+
+gateway:
+  platforms:
+    api_server:
+      enabled: true
+      host: 127.0.0.1
+      port: 8642
+

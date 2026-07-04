@@ -1,0 +1,8 @@
+name: zc-agent-desk
+version: 0.1.0
+description: Business tools for the ZC Agent Desk employee chatbot.
+author: zcloveyou
+provides_tools:
+  - query_mock_business
+  - create_todo
+

@@ -27,3 +27,9 @@ Setting a working directory does not confine a shell. macOS developer tools are
 allowed only after an operating-system policy probe passes. Other platforms
 disable those tools while retaining the business chatbot.
 
+### Isolate Hermes configuration
+
+Project-plugin discovery requires `HERMES_ENABLE_PROJECT_PLUGINS=1`, while
+activation separately requires `plugins.enabled`. ZC Agent Desk uses its own
+project-local `HERMES_HOME` and config template so setup never mutates the
+developer's personal `~/.hermes` profile.
