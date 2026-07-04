@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+from urllib import error, parse, request
 
 
 QUERY_MOCK_BUSINESS = {
@@ -51,24 +53,48 @@ CREATE_TODO = {
 }
 
 
-def _not_connected(tool_name: str) -> str:
-    return json.dumps(
-        {
-            "error": "zc_agent_desk_backend_unavailable",
-            "tool": tool_name,
-            "message": "The ZC Agent Desk backend bridge is not configured.",
-        }
+def _bridge(path: str, *, payload: dict | None = None, timeout: float = 10) -> dict:
+    base_url = os.getenv("ZC_AGENT_DESK_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+    api_key = os.getenv("HERMES_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("ZC Agent Desk bridge authentication is not configured")
+    body = json.dumps(payload).encode() if payload is not None else None
+    bridge_request = request.Request(
+        f"{base_url}{path}",
+        data=body,
+        method="POST" if payload is not None else "GET",
+        headers={
+            "Content-Type": "application/json",
+            "X-ZC-Bridge-Key": api_key,
+        },
     )
+    try:
+        with request.urlopen(bridge_request, timeout=timeout) as response:
+            result = json.loads(response.read())
+    except (error.HTTPError, error.URLError, TimeoutError) as exc:
+        raise RuntimeError("ZC Agent Desk backend bridge is unavailable") from exc
+    if not isinstance(result, dict):
+        raise RuntimeError("ZC Agent Desk backend returned an invalid response")
+    return result
 
 
 def query_mock_business(args: dict, **_: object) -> str:
-    """Temporary G1 handler; the verified backend bridge is added at G3."""
-    return _not_connected("query_mock_business")
+    order_id = parse.quote(str(args.get("order_id", "")), safe="")
+    return json.dumps(_bridge(f"/api/internal/orders/{order_id}"), ensure_ascii=False)
 
 
-def create_todo(args: dict, **_: object) -> str:
-    """Temporary G1 handler; approval and persistence are added at G3."""
-    return _not_connected("create_todo")
+def create_todo(args: dict, session_id: str = "", **_: object) -> str:
+    if not session_id:
+        return json.dumps({"error": "missing_session_id"})
+    timeout = float(os.getenv("ZC_AGENT_DESK_APPROVAL_TIMEOUT", "310"))
+    response = _bridge(
+        f"/api/internal/runs/{parse.quote(session_id, safe='')}/proposals",
+        payload={"tool": "create_todo", "arguments": args},
+        timeout=timeout,
+    )
+    if not response.get("approved"):
+        return json.dumps({"error": "user_rejected", **response.get("result", {})})
+    return json.dumps(response.get("result", {}), ensure_ascii=False)
 
 
 def register(ctx) -> None:
@@ -86,4 +112,3 @@ def register(ctx) -> None:
         handler=create_todo,
         emoji="✅",
     )
-

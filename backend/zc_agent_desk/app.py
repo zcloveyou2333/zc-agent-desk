@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import os
 import re
@@ -36,6 +37,11 @@ class RunCreate(BaseModel):
 
 class ApprovalCreate(BaseModel):
     decision: str
+
+
+class ToolProposal(BaseModel):
+    tool: str
+    arguments: dict[str, Any]
 
 
 class Store:
@@ -282,6 +288,8 @@ def create_app(
     *,
     mode: str | None = None,
     hermes_client: Any | None = None,
+    bridge_key: str | None = None,
+    proposal_timeout: float = 300,
 ) -> FastAPI:
     store = Store(Path(database_path))
     runtime_mode = mode or os.getenv("APP_MODE", "mock")
@@ -292,6 +300,7 @@ def create_app(
             os.getenv("HERMES_BASE_URL", "http://127.0.0.1:8642"),
             os.getenv("HERMES_API_KEY", ""),
         )
+    internal_bridge_key = bridge_key if bridge_key is not None else os.getenv("HERMES_API_KEY", "")
     tasks: set[asyncio.Task] = set()
 
     @asynccontextmanager
@@ -318,6 +327,70 @@ def create_app(
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "mode": runtime_mode}
+
+    def require_bridge_auth(provided: str | None) -> None:
+        if not internal_bridge_key or not provided or not hmac.compare_digest(
+            provided, internal_bridge_key
+        ):
+            raise HTTPException(401, "Invalid bridge authentication")
+
+    @app.get("/api/internal/orders/{order_id}")
+    def internal_order(
+        order_id: str,
+        x_zc_bridge_key: str | None = Header(default=None, alias="X-ZC-Bridge-Key"),
+    ) -> dict[str, Any]:
+        require_bridge_auth(x_zc_bridge_key)
+        order = store.order(order_id)
+        if not order:
+            return {"found": False, "order_id": order_id}
+        return {"found": True, "order": order}
+
+    @app.post("/api/internal/runs/{run_id}/proposals")
+    async def internal_proposal(
+        run_id: str,
+        body: ToolProposal,
+        x_zc_bridge_key: str | None = Header(default=None, alias="X-ZC-Bridge-Key"),
+    ) -> dict[str, Any]:
+        require_bridge_auth(x_zc_bridge_key)
+        run = store.run(run_id)
+        if not run:
+            raise HTTPException(404, "Run not found")
+        existing = store.approval(run_id)
+        if not existing and run["status"] != "awaiting_approval":
+            store.add_event(
+                run_id,
+                "approval.required",
+                {"tool": body.tool, "arguments": body.arguments},
+            )
+            store.set_run(run_id, "awaiting_approval", body.tool, body.arguments)
+
+        deadline = asyncio.get_running_loop().time() + proposal_timeout
+        while asyncio.get_running_loop().time() < deadline:
+            approval = store.approval(run_id)
+            if approval:
+                if approval["decision"] == "approve":
+                    return {
+                        "approved": True,
+                        "result": {
+                            "created": body.tool == "create_todo",
+                            **(
+                                {"title": body.arguments.get("title", "")}
+                                if body.tool == "create_todo"
+                                else {"allowed": True}
+                            ),
+                        },
+                    }
+                return {
+                    "approved": False,
+                    "result": {"created": False, "reason": "rejected"},
+                }
+            current = store.run(run_id)
+            if not current or current["status"] == "cancelled":
+                raise HTTPException(409, "Run was cancelled")
+            await asyncio.sleep(min(0.05, proposal_timeout))
+        store.add_event(run_id, "run.failed", {"message": "Approval timed out"})
+        store.set_run(run_id, "failed")
+        raise HTTPException(408, "Approval timed out")
 
     @app.post("/api/conversations", status_code=201)
     def create_conversation(body: ConversationCreate) -> dict[str, Any]:
@@ -428,7 +501,7 @@ def create_app(
         return StreamingResponse(stream(), media_type="text/event-stream")
 
     @app.post("/api/runs/{run_id}/approval")
-    def approve_run(run_id: str, body: ApprovalCreate) -> dict[str, Any]:
+    async def approve_run(run_id: str, body: ApprovalCreate) -> dict[str, Any]:
         if body.decision not in {"approve", "reject"}:
             raise HTTPException(422, "Decision must be approve or reject")
         run = store.run(run_id)
@@ -441,6 +514,11 @@ def create_app(
             raise HTTPException(409, "Run is not awaiting approval")
         store.record_approval(run_id, body.decision)
         args = json.loads(run["pending_args"])
+        if runtime_mode == "hermes":
+            if run["pending_tool"] == "create_todo" and body.decision == "approve":
+                store.create_todo(run_id, args)
+            store.set_run(run_id, "running")
+            return {"run_id": run_id, "status": "running", "replayed": False}
         if body.decision == "approve":
             store.create_todo(run_id, args)
             result = {"created": True, "title": args["title"]}
