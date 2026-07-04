@@ -1,6 +1,6 @@
 model:
   provider: custom
-  default: __OPENAI_MODEL__
+  default: __MODEL_NAME__
 
 plugins:
   enabled:
@@ -26,4 +26,3 @@ gateway:
       enabled: true
       host: 127.0.0.1
       port: 8642
-

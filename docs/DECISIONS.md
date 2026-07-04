@@ -33,3 +33,9 @@ Project-plugin discovery requires `HERMES_ENABLE_PROJECT_PLUGINS=1`, while
 activation separately requires `plugins.enabled`. ZC Agent Desk uses its own
 project-local `HERMES_HOME` and config template so setup never mutates the
 developer's personal `~/.hermes` profile.
+
+### Use `MODEL_NAME` consistently
+
+The live provider model is configured through `MODEL_NAME`, matching the
+developer's existing projects. `OPENAI_MODEL` is not accepted as a second alias
+because duplicate names make interrupted runs and setup instructions ambiguous.

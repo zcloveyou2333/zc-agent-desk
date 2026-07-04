@@ -30,7 +30,8 @@ same public run, event, tool, and approval contracts as live mode.
 
 `APP_MODE=hermes` sends runs to a pinned Hermes sidecar configured with an
 OpenAI-compatible Chat Completions endpoint that supports structured tool
-calls.
+calls. The model identifier is supplied through `MODEL_NAME`, matching the
+existing local project convention.
 
 ## Tools
 
@@ -55,4 +56,3 @@ sequence numbers so an SSE client can reconnect from its last seen event.
 
 The MVP does not include authentication, deployment, retrieval-augmented
 generation, multi-user authorization, or complex multi-tool planning.
-
