@@ -27,7 +27,7 @@ ZC Agent Desk 是一个内部员工 Chatbot MVP，用于展示多轮对话、模
 `OPENAI_API_KEY`，不会启动 Hermes，也不需要 `.env`。
 
 ```bash
-git clone <repository-url> zc-agent-desk
+git clone https://github.com/zcloveyou2333/zc-agent-desk.git
 cd zc-agent-desk
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
@@ -119,6 +119,17 @@ cd ..
 更多信息见[架构说明](docs/ARCHITECTURE.md)、[设计说明](docs/DESIGN.md)、
 [决策记录](docs/DECISIONS.md)、[AI 协作记录](docs/AI_COLLABORATION.md)和
 [录屏检查清单](docs/RECORDING.md)。
+
+## AI 工具如何参与项目
+
+本项目主要使用 **OpenAI Codex** 作为结对开发 Agent，并使用 **ChatGPT** 辅助早期方案讨论。
+AI 参与了需求拆解、架构比较、实施计划、测试驱动开发、Hermes 技术探针、真实 API 调试、
+浏览器验收、故障定位、文档整理和发布检查。关键设计与每次行为变更均由自动化测试或实际运行验证，
+而不是直接接受生成结果。
+
+具体采纳、修改和拒绝记录见 [AI 协作记录](docs/AI_COLLABORATION.md)。其中包括拒绝重构 Hermes
+核心、拒绝把 `cwd` 伪装成沙箱、保留零 Key Mock、修正 Hermes 插件与审批配置，以及根据真实
+浏览器测试修复 StrictMode 重复初始化、审批竞态和 Trace 展示问题。
 
 ## 当前限制
 
