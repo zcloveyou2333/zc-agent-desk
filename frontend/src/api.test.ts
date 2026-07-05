@@ -46,13 +46,13 @@ describe('API client', () => {
       .mockResolvedValueOnce(jsonResponse({ run_id: 'r1', status: 'completed', replayed: false }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await createRun('c1', '查询订单 ORD-1001');
+    await createRun('c1', '查询订单 ORD-1001', 'workflow');
     await decideApproval('r1', 'approve');
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       '/api/conversations/c1/runs',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ message: '查询订单 ORD-1001' }) }),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ message: '查询订单 ORD-1001', mode: 'workflow' }) }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
@@ -70,8 +70,16 @@ describe('API client', () => {
     await expect(getConversation('missing')).rejects.toThrow('Run not found');
   });
 
-  it('reads the active runtime mode', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ status: 'ok', mode: 'hermes' })));
-    await expect(getHealth()).resolves.toEqual({ status: 'ok', mode: 'hermes' });
+  it('reads independent runtime capabilities', async () => {
+    const health = {
+      status: 'ok',
+      mode: 'auto',
+      runtimes: {
+        workflow: { available: true },
+        hermes: { available: false, reason: 'Real Agent 尚未配置' },
+      },
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(health)));
+    await expect(getHealth()).resolves.toEqual(health);
   });
 });

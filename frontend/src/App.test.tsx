@@ -20,6 +20,7 @@ const detail: ConversationDetail = {
       id: 'r1',
       conversation_id: 'c1',
       status: 'completed',
+      runtime_mode: 'hermes',
       pending_tool: null,
       pending_args: null,
       events: [
@@ -33,6 +34,7 @@ const detail: ConversationDetail = {
       id: 'r2',
       conversation_id: 'c1',
       status: 'awaiting_approval',
+      runtime_mode: 'hermes',
       pending_tool: 'create_todo',
       pending_args: { title: '周五提交周报', priority: 'normal' },
       events: [
@@ -43,6 +45,7 @@ const detail: ConversationDetail = {
       id: 'r-terminal',
       conversation_id: 'c1',
       status: 'awaiting_approval',
+      runtime_mode: 'hermes',
       pending_tool: 'terminal',
       pending_args: { command: 'pwd' },
       events: [],
@@ -52,7 +55,11 @@ const detail: ConversationDetail = {
 
 beforeEach(() => {
   vi.mocked(api.listConversations).mockResolvedValue([{ id: 'c1', title: '订单与待办', created_at: detail.created_at }]);
-  vi.mocked(api.getHealth).mockResolvedValue({ status: 'ok', mode: 'hermes' });
+  vi.mocked(api.getHealth).mockResolvedValue({
+    status: 'ok',
+    mode: 'auto',
+    runtimes: { workflow: { available: true }, hermes: { available: true } },
+  });
   vi.mocked(api.getConversation).mockResolvedValue(detail);
   vi.mocked(api.listTodos).mockResolvedValue([
     { id: 't1', title: '完成录屏', due_at: null, priority: 'normal', created_at: detail.created_at },
@@ -132,7 +139,7 @@ it('renders a streamed tool event before the run completes', async () => {
     ],
     runs: [
       ...detail.runs,
-      { id: 'r3', conversation_id: 'c1', status: 'running', pending_tool: null, pending_args: null, events: [] },
+      { id: 'r3', conversation_id: 'c1', status: 'running', runtime_mode: 'hermes', pending_tool: null, pending_args: null, events: [] },
     ],
   };
   vi.mocked(api.createRun).mockResolvedValue({ run_id: 'r3', status: 'running' });

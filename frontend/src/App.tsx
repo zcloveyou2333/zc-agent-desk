@@ -38,7 +38,7 @@ export default function App() {
     Promise.all([
       refreshConversations(),
       api.listTodos().then(setTodos),
-      api.getHealth().then((health) => setRuntimeMode(health.mode)),
+      api.getHealth().then((health) => setRuntimeMode(health.runtimes.hermes.available ? 'hermes' : 'mock')),
     ]).catch((reason) => {
       setError(reason instanceof Error ? reason.message : '载入失败');
     });

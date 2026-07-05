@@ -6,6 +6,7 @@ function run(overrides: Partial<Run> = {}): Run {
     id: 'r1',
     conversation_id: 'c1',
     status: 'completed',
+    runtime_mode: 'workflow',
     pending_tool: null,
     pending_args: null,
     events: [],

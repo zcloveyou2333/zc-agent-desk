@@ -6,6 +6,13 @@ export type RunStatus =
   | 'failed'
   | 'cancelled';
 
+export type RuntimeMode = 'workflow' | 'hermes';
+
+export interface RuntimeCapability {
+  available: boolean;
+  reason?: string;
+}
+
 export interface Conversation {
   id: string;
   title: string;
@@ -32,6 +39,7 @@ export interface Run {
   id: string;
   conversation_id: string;
   status: RunStatus;
+  runtime_mode: RuntimeMode;
   pending_tool: string | null;
   pending_args: Record<string, unknown> | null;
   events: RunEvent[];
@@ -63,5 +71,6 @@ export interface ApprovalResult {
 
 export interface Health {
   status: string;
-  mode: 'mock' | 'hermes';
+  mode: 'auto' | 'mock' | 'hermes';
+  runtimes: Record<RuntimeMode, RuntimeCapability>;
 }

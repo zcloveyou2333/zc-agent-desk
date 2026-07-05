@@ -5,6 +5,7 @@ import type {
   Health,
   RunCreated,
   RunEvent,
+  RuntimeMode,
   Todo,
 } from './types';
 
@@ -34,10 +35,10 @@ export const createConversation = (title: string) =>
 export const getConversation = (id: string) =>
   request<ConversationDetail>(`/api/conversations/${id}`);
 
-export const createRun = (conversationId: string, message: string) =>
+export const createRun = (conversationId: string, message: string, mode: RuntimeMode = 'workflow') =>
   request<RunCreated>(`/api/conversations/${conversationId}/runs`, {
     method: 'POST',
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, mode }),
   });
 
 export const decideApproval = (runId: string, decision: 'approve' | 'reject') =>
