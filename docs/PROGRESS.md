@@ -2,7 +2,8 @@
 
 ## Current gate
 
-G4 - Release candidate complete; awaiting Git identity decision and G5 approval.
+G5 - Public repository published; inline run trace feature is under review on a
+dedicated branch.
 
 ## Completed
 
@@ -31,6 +32,8 @@ G4 - Release candidate complete; awaiting Git identity decision and G5 approval.
   verifies critical hashes before creating its isolated environment.
 - Public documentation now covers architecture, AI decisions, startup,
   limitations, release checks, and the 8–12 minute recording plan.
+- Git history uses the approved public author identity, and `main` is published
+  at `zcloveyou2333/zc-agent-desk` without local secrets or runtime data.
 
 ## G1 evidence and blockers
 
@@ -97,9 +100,23 @@ G4 - Release candidate complete; awaiting Git identity decision and G5 approval.
 
 ## Next action
 
-Choose a public Git author email and explicitly approve the local history
-rewrite if desired. Then record the 8–12 minute demo, perform the final privacy
-review, and start G5. Do not publish the repository before G5 approval.
+Review and merge `codex/inline-run-trace` after verification. Then record the
+8–12 minute demo and perform the final video privacy review before sending the
+repository and video links to HR.
+
+## Inline run trace evidence
+
+- An additive migration links new user and assistant messages to their run;
+  historical messages remain valid with a null link.
+- Conversation cards show running, completed, approval, failed-tool, and
+  failed-run states with expandable sanitized arguments and results.
+- Incoming SSE events merge by `(run_id, sequence)` before final refresh, so
+  tool activity appears while the run is still active without duplicate replay.
+- Agent Trace marks failed tools and runs in red and exposes a sanitized failure
+  detail disclosure. Hermes internal retry logs remain intentionally out of
+  scope until they are part of the sidecar event protocol.
+- Real Mock browser acceptance verified order lookup, expansion, refresh
+  recovery, and a 760px responsive viewport.
 
 ## Recovery protocol
 

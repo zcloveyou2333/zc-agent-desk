@@ -24,6 +24,9 @@ Secrets, private prompts, and unrelated machine information are excluded.
 | Hermes reproducibility | Document the manually downloaded archive as sufficient | Modified | The verified archive was matched to upstream commit `5445e42b`; setup now checks out that immutable revision and verifies three critical hashes. |
 | Release readiness | Rely on a one-time manual secret review | Rejected | A tracked release check now fails on macOS user paths, key-shaped strings, missing delivery docs, or a mutable Hermes lock. |
 | Clean install | Assume the existing editable install proves README setup | Rejected | A true empty clone exposed setuptools package ambiguity. Package discovery is now explicit and regression-tested, then the entire clone/start flow was rerun. |
+| Inline run placement | Infer each run's messages from timestamps | Rejected | Concurrent, retried, or delayed runs make timestamp pairing ambiguous. An additive nullable `messages.run_id` migration gives the UI an explicit relationship while preserving old data. |
+| Retry display | Show guessed “retrying” states from a long-running request | Rejected | Hermes retry logs are not part of the normalized SSE contract. The UI shows only observed tool and final failure events rather than inventing progress. |
+| Agent activity layout | Copy every Trace event into the chat stream | Modified | The selected Manus-inspired card groups each run, stays compact by default, and expands to sanitized tool details; the Inspector remains the complete audit view. |
 
 Future entries use the same format: suggestion, adoption/modification/rejection,
 rationale, and concrete verification evidence.
