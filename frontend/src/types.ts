@@ -16,6 +16,7 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  run_id: string | null;
   created_at: string;
 }
 

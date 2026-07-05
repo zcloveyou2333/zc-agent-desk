@@ -12,8 +12,8 @@ const detail: ConversationDetail = {
   title: '订单与待办',
   created_at: '2026-07-03T10:00:00Z',
   messages: [
-    { id: 'm1', role: 'user', content: '查询订单 ORD-1001', created_at: '2026-07-03T10:00:00Z' },
-    { id: 'm2', role: 'assistant', content: '订单 ORD-1001 当前状态：已发货。', created_at: '2026-07-03T10:00:01Z' },
+    { id: 'm1', role: 'user', content: '查询订单 ORD-1001', run_id: null, created_at: '2026-07-03T10:00:00Z' },
+    { id: 'm2', role: 'assistant', content: '订单 ORD-1001 当前状态：已发货。', run_id: null, created_at: '2026-07-03T10:00:01Z' },
   ],
   runs: [
     {
