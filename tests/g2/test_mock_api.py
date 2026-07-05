@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import sqlite3
+
 from fastapi.testclient import TestClient
 
-from zc_agent_desk.app import create_app
+from zc_agent_desk.app import Store, create_app
 
 
 def make_client(tmp_path) -> TestClient:
@@ -13,6 +15,33 @@ def create_conversation(client: TestClient) -> str:
     response = client.post("/api/conversations", json={"title": "测试会话"})
     assert response.status_code == 201
     return response.json()["id"]
+
+
+def test_initialize_adds_run_id_to_legacy_messages_table(tmp_path) -> None:
+    database = tmp_path / "legacy.sqlite3"
+    with sqlite3.connect(database) as db:
+        db.executescript(
+            """
+            CREATE TABLE conversations (
+                id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL
+            );
+            CREATE TABLE messages (
+                id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL,
+                role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL
+            );
+            INSERT INTO conversations VALUES ('c1', '旧会话', '2026-07-03T00:00:00Z');
+            INSERT INTO messages VALUES ('m1', 'c1', 'user', '旧消息', '2026-07-03T00:00:00Z');
+            """
+        )
+
+    store = Store(database)
+    store.initialize()
+
+    with store.connect() as db:
+        columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
+        message = db.execute("SELECT content, run_id FROM messages WHERE id='m1'").fetchone()
+    assert "run_id" in columns
+    assert tuple(message) == ("旧消息", None)
 
 
 def test_ordinary_reply_uses_conversation_history(tmp_path) -> None:
@@ -50,7 +79,8 @@ def test_order_query_returns_seeded_order_and_trace(tmp_path) -> None:
 
         assert response.status_code == 202
         run_id = response.json()["run_id"]
-        run = client.get(f"/api/conversations/{conversation_id}").json()["runs"][-1]
+        detail = client.get(f"/api/conversations/{conversation_id}").json()
+        run = detail["runs"][-1]
         assert run["id"] == run_id
         assert run["status"] == "completed"
         assert [event["type"] for event in run["events"]] == [
@@ -60,6 +90,8 @@ def test_order_query_returns_seeded_order_and_trace(tmp_path) -> None:
             "message.completed",
         ]
         assert "已发货" in run["events"][-1]["data"]["content"]
+        assert detail["messages"][-2]["run_id"] == run_id
+        assert detail["messages"][-1]["run_id"] == run_id
 
 
 def test_missing_order_is_reported_without_failing_run(tmp_path) -> None:

@@ -65,7 +65,9 @@ class Store:
                 CREATE TABLE IF NOT EXISTS messages (
                     id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL,
                     role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL,
-                    FOREIGN KEY(conversation_id) REFERENCES conversations(id)
+                    run_id TEXT,
+                    FOREIGN KEY(conversation_id) REFERENCES conversations(id),
+                    FOREIGN KEY(run_id) REFERENCES runs(id)
                 );
                 CREATE TABLE IF NOT EXISTS runs (
                     id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL,
@@ -103,6 +105,9 @@ class Store:
             run_columns = {row[1] for row in db.execute("PRAGMA table_info(runs)").fetchall()}
             if "upstream_run_id" not in run_columns:
                 db.execute("ALTER TABLE runs ADD COLUMN upstream_run_id TEXT")
+            message_columns = {row[1] for row in db.execute("PRAGMA table_info(messages)").fetchall()}
+            if "run_id" not in message_columns:
+                db.execute("ALTER TABLE messages ADD COLUMN run_id TEXT REFERENCES runs(id)")
 
     def create_conversation(self, title: str) -> dict[str, Any]:
         item = {"id": uuid.uuid4().hex, "title": title.strip() or "新会话", "created_at": now()}
@@ -113,18 +118,25 @@ class Store:
             )
         return item
 
-    def add_message(self, conversation_id: str, role: str, content: str) -> dict[str, Any]:
+    def add_message(
+        self,
+        conversation_id: str,
+        role: str,
+        content: str,
+        run_id: str | None = None,
+    ) -> dict[str, Any]:
         item = {
             "id": uuid.uuid4().hex,
             "conversation_id": conversation_id,
             "role": role,
             "content": content,
+            "run_id": run_id,
             "created_at": now(),
         }
         with self.connect() as db:
             db.execute(
-                """INSERT INTO messages(id, conversation_id, role, content, created_at)
-                   VALUES (:id, :conversation_id, :role, :content, :created_at)""",
+                """INSERT INTO messages(id, conversation_id, role, content, run_id, created_at)
+                   VALUES (:id, :conversation_id, :role, :content, :run_id, :created_at)""",
                 item,
             )
         return item
@@ -132,7 +144,7 @@ class Store:
     def messages(self, conversation_id: str) -> list[dict[str, Any]]:
         with self.connect() as db:
             rows = db.execute(
-                "SELECT id, role, content, created_at FROM messages WHERE conversation_id=? ORDER BY rowid",
+                "SELECT id, role, content, run_id, created_at FROM messages WHERE conversation_id=? ORDER BY rowid",
                 (conversation_id,),
             ).fetchall()
         return [dict(row) for row in rows]
@@ -245,7 +257,7 @@ class Store:
 
 
 def assistant_message(store: Store, run_id: str, conversation_id: str, content: str) -> None:
-    store.add_message(conversation_id, "assistant", content)
+    store.add_message(conversation_id, "assistant", content, run_id)
     store.add_event(run_id, "message.delta", {"delta": content})
     store.add_event(run_id, "message.completed", {"content": content})
     store.set_run(run_id, "completed")
@@ -441,7 +453,7 @@ def create_app(
                     store.set_run(local_run_id, "awaiting_approval", str(event.get("tool") or "terminal"), args)
                 elif event_type == "run.completed":
                     output = str(event.get("output") or "")
-                    store.add_message(conversation_id, "assistant", output)
+                    store.add_message(conversation_id, "assistant", output, local_run_id)
                     store.add_event(local_run_id, "message.completed", {"content": output})
                     store.set_run(local_run_id, "completed")
                     return
@@ -458,8 +470,8 @@ def create_app(
     async def create_run(conversation_id: str, body: RunCreate) -> dict[str, str]:
         if not store.conversation(conversation_id):
             raise HTTPException(404, "Conversation not found")
-        store.add_message(conversation_id, "user", body.message)
         run_id = store.create_run(conversation_id)
+        store.add_message(conversation_id, "user", body.message, run_id)
         if runtime_mode == "mock":
             status = execute_mock(store, conversation_id, run_id, body.message)
         else:

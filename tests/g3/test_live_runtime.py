@@ -79,6 +79,8 @@ def test_live_runtime_normalizes_events_and_persists_final_message(tmp_path) -> 
         "message.completed",
     ]
     assert detail["messages"][-1]["content"] == "订单 ORD-1001 已发货"
+    assert detail["messages"][-2]["run_id"] == run_id
+    assert detail["messages"][-1]["run_id"] == run_id
 
 
 def test_live_runtime_records_sanitized_failure(tmp_path) -> None:
