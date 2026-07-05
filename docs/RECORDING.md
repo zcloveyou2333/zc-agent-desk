@@ -1,44 +1,23 @@
-# Recording Checklist (8–12 minutes)
+# 录屏检查清单（8–12 分钟）
 
-## Before recording
+## 录制前
 
-- Use a clean browser profile or hide bookmarks, account names, notifications,
-  terminal history, `.env`, provider URLs, and API dashboards.
-- Start once in `auto` mode. Keep Workflow selected first; show Real Agent only
-  if the relay is responsive.
-- Run the verification commands in README and keep the final summary visible.
-- Confirm the repository contains no local absolute paths, keys, tokens, or
-  private screenshots with `python scripts/release_check.py`.
+- 使用干净的浏览器配置，或隐藏书签、账户名、通知、终端历史、`.env`、供应商 URL 和 API 控制台。
+- 使用 `auto` 模式一次启动。先选择 Workflow；只有中转站响应正常时才演示 Real Agent。
+- 执行 README 中的验证命令，并保留最终摘要供录屏展示。
+- 执行 `python scripts/release_check.py`，确认仓库不含本机绝对路径、Key、Token 或私人截图。
 
-## Suggested timeline
+## 建议时间线
 
-1. **0:00–1:15 — Problem and scope.** Explain the employee-chatbot goal, the
-   required zero-key path, and why login, RAG, deployment, and multi-user
-   permissions were excluded.
-2. **1:15–2:30 — Architecture.** Show `docs/ARCHITECTURE.md`: React/FastAPI,
-   SQLite, replaceable Mock/Hermes runtimes, plugin boundary, and lifecycle
-   Trace. State that Hermes was reused rather than rewritten.
-3. **2:30–4:30 — Workflow acceptance.** State that Workflow is the required
-   zero-key Mock path. Demonstrate `关键词分析` with its six visible steps, then
-   an order or approval-gated todo; show the inline run card and Trace.
-4. **4:30–6:30 — AI collaboration judgment.** Show three concrete entries in
-   `docs/AI_COLLABORATION.md`: reject an eleven-folder Hermes refactor, retain
-   deterministic Mock mode, and replace `cwd`-as-sandbox with tested policy.
-   Mention the live bugs found and regression-tested instead of hiding them.
-5. **6:30–8:30 — Real Agent path.** Switch in the same composer without a
-   restart. If available, demonstrate model-selected order lookup and one
-   approval-gated tool. Explain that results return to the model before its
-   final answer. If unavailable, show the disabled capability and recorded G3
-   evidence; do not imply a live run.
-6. **8:30–10:00 — Verification and limits.** Show automated tests/build,
-   release scan, fixed upstream commit, zero-key startup, current relay and
-   macOS-sandbox limitations, and the next production steps.
+1. **0:00–1:15 — 问题与范围。** 说明员工 Chatbot 目标、必须支持的零 Key 路径，以及为何排除登录、RAG、部署和多用户权限。
+2. **1:15–2:30 — 架构。** 展示 `docs/ARCHITECTURE.md`：React/FastAPI、SQLite、可替换的 Mock/Hermes Runtime、插件边界和生命周期 Trace。说明项目复用了 Hermes，而不是重写它。
+3. **2:30–4:30 — Workflow 验收。** 说明 Workflow 就是要求中的零 Key Mock 路径。演示 `关键词分析` 的六个可见步骤，再演示订单或需要审批的待办；展示对话内运行卡和 Trace。
+4. **4:30–6:30 — AI 协作判断。** 展示 `docs/AI_COLLABORATION.md` 中三个具体决策：拒绝按十一层重构 Hermes、保留确定性 Mock 模式、用已验证策略替代把 `cwd` 当沙箱。主动说明真实测试发现并通过回归测试修复的问题。
+5. **6:30–8:30 — Real Agent 路径。** 在同一个输入框切换，无需重启。如果可用，演示模型自主查询订单和一个需要审批的工具。说明最终回答生成前，工具结果会返回模型。如果不可用，展示禁用状态和已有 G3 证据，不要暗示现场运行成功。
+6. **8:30–10:00 — 验证与限制。** 展示自动化测试、构建、发布扫描、固定上游 commit、零 Key 启动，以及当前中转站和 macOS 沙箱限制，并说明下一步生产化工作。
 
-## Final privacy review
+## 最终隐私检查
 
-- Watch the exported video once at normal speed and once while scrubbing frame
-  by frame around terminal/editor transitions.
-- Verify no `.env`, shell history, token, provider account, personal username,
-  notification, browser profile, or local filesystem path is legible.
-- Open every submitted link in a logged-out/incognito browser before sending it
-  to HR.
+- 导出视频后，以正常速度完整观看一次，再逐帧检查终端和编辑器切换位置。
+- 确认画面中没有 `.env`、Shell 历史、Token、供应商账户、个人用户名、通知、浏览器配置或本机文件路径。
+- 提交前，在未登录或无痕窗口打开所有链接进行验证。

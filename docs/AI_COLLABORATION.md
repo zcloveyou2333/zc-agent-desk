@@ -1,35 +1,33 @@
-# AI Collaboration Record
+# AI 协作记录
 
-This document records material AI-assisted decisions rather than raw chat logs.
-Secrets, private prompts, and unrelated machine information are excluded.
+本文记录影响项目的 AI 辅助决策，而不是原始聊天日志。密钥、私人提示词和无关机器信息均已排除。
 
-| Topic | AI suggestion | Decision | Reason and verification |
+| 主题 | AI 建议 | 决策 | 原因与验证 |
 | --- | --- | --- | --- |
-| Agent runtime | Refactor Hermes into eleven Claude Code Unpacked stages | Rejected | Those stages describe request flow, not stable module boundaries; the fork cost does not improve the required MVP. |
-| Integration | Run Hermes as a sidecar behind an adapter | Accepted | Preserves an explicit product/runtime boundary and permits a zero-Hermes mock mode. G1 must verify the pinned API. |
-| Mock mode | Skip mock because a live key exists | Rejected | Zero-key operation is an explicit assignment requirement and is needed for deterministic tests. |
-| Write tools | Execute todo creation immediately | Rejected | A write effect must pause before persistence and record approval or rejection. |
-| Local shell | Treat `cwd` as a sandbox | Rejected | A local shell can leave its starting directory. The project requires a macOS policy probe and honest limitations. |
-| Hermes plugin activation | Set only `HERMES_ENABLE_PROJECT_PLUGINS=1` | Modified | A live discovery probe showed this only enables scanning; `plugins.enabled` is also required, so the project isolates and supplies both settings. |
-| Public environment template | Mirror the private `.env`, including a fake key shaped like a secret | Rejected | The public template uses generic placeholders so secret scanners stay meaningful and provider details are not accidentally published. |
-| Relay authentication | Keep bare `provider: custom` and rely on `OPENAI_API_KEY` fallback | Rejected | Hermes intentionally withholds that credential from third-party hosts. A named provider with `key_env` passed live text and tool-call probes without storing the key. |
-| Approval config | Use conceptual value `ask` | Modified | Hermes 0.18 only supports `manual`, `smart`, and `off`. The template now uses `manual`, verified by a live request-and-deny flow. |
-| Mock agent behavior | Make mock responses random or model-like | Rejected | Explicit deterministic routing produces honest zero-key behavior and repeatable acceptance tests while preserving the same public run/tool/approval contracts. |
-| Frontend direction | Use a dark developer-terminal aesthetic | Rejected | The selected light enterprise console makes approvals and Trace legible to a mixed HR/engineering audience during recording. |
-| Duplicate initial conversations | Disable React StrictMode | Rejected | A browser probe revealed the duplicate effect. Initialization is guarded and regression-tested while StrictMode remains useful. |
-| Todo integration | Persist directly inside the Hermes plugin | Rejected | The plugin first creates an authenticated blocking proposal. The public approval transaction owns persistence, so rejection and replay cannot create side effects. |
-| Developer approvals | Rely on Hermes dangerous-command detection | Rejected | It does not gate every terminal/write/patch call. A project pre-tool hook now applies path validation and application approval to every invocation. |
-| Live Trace | Render every streamed token as a Trace row | Modified | Every delta stays in SQLite/SSE, while consecutive deltas collapse to one visual lifecycle node for recording clarity. |
-| Cancel behavior | Ignore tool proposals that race with cancellation | Rejected | A live run exposed the race. Terminal runs now reject late proposals before emitting approval events, with a regression test. |
-| Hermes reproducibility | Document the manually downloaded archive as sufficient | Modified | The verified archive was matched to upstream commit `5445e42b`; setup now checks out that immutable revision and verifies three critical hashes. |
-| Release readiness | Rely on a one-time manual secret review | Rejected | A tracked release check now fails on macOS user paths, key-shaped strings, missing delivery docs, or a mutable Hermes lock. |
-| Clean install | Assume the existing editable install proves README setup | Rejected | A true empty clone exposed setuptools package ambiguity. Package discovery is now explicit and regression-tested, then the entire clone/start flow was rerun. |
-| Inline run placement | Infer each run's messages from timestamps | Rejected | Concurrent, retried, or delayed runs make timestamp pairing ambiguous. An additive nullable `messages.run_id` migration gives the UI an explicit relationship while preserving old data. |
-| Retry display | Show guessed “retrying” states from a long-running request | Rejected | Hermes retry logs are not part of the normalized SSE contract. The UI shows only observed tool and final failure events rather than inventing progress. |
-| Agent activity layout | Copy every Trace event into the chat stream | Modified | The selected Manus-inspired card groups each run, stays compact by default, and expands to sanitized tool details; the Inspector remains the complete audit view. |
-| Runtime UX | Restart separate Mock and Hermes services for each demo | Rejected | Per-message Workflow/Real Agent selection preserves one conversation and records the runtime on each run; health capabilities disable Real Agent when unavailable. |
-| Mock product framing | Present deterministic routing as a simulated agent | Modified | The zero-key requirement is named Workflow in the UI: an honest pre-orchestrated natural-language flow, while README explicitly maps it to the required Mock capability. |
-| Workflow scope | Port the private decision-support project and its data platform | Rejected | Only the general named-workflow and observable-step concepts were retained. `关键词分析` was reimplemented with synthetic data, explicit parameters, deterministic eight-category logic, and no private prompts or source code. |
+| Agent Runtime | 把 Hermes 重构为 Claude Code Unpacked 的十一阶段 | 拒绝 | 这些阶段描述请求流，不是稳定模块边界；维护分叉不会改善 MVP 交付。 |
+| 集成方式 | 通过 Adapter 把 Hermes 作为 sidecar 运行 | 采纳 | 保留明确的产品与 Runtime 边界，同时支持不依赖 Hermes 的 Mock 模式；G1 负责验证固定版本 API。 |
+| Mock 模式 | 已有真实 Key，可以跳过 Mock | 拒绝 | 零 Key 运行是笔试明确要求，也保证确定性测试。 |
+| 写工具 | 立即执行待办创建 | 拒绝 | 写入必须在持久化前暂停，并记录批准或拒绝。 |
+| 本机 Shell | 把 `cwd` 当作沙箱 | 拒绝 | 本机 Shell 可以离开起始目录；项目必须验证 macOS 策略并如实说明限制。 |
+| Hermes 插件启用 | 只设置 `HERMES_ENABLE_PROJECT_PLUGINS=1` | 修改 | 实际探针证明该变量只开启扫描，还需要 `plugins.enabled`；项目隔离并同时提供两项配置。 |
+| 公开环境模板 | 复制私人 `.env`，并放入形似密钥的假 Key | 拒绝 | 公开模板使用通用占位符，保持密钥扫描有效并避免泄露供应商细节。 |
+| 中转认证 | 保留裸 `provider: custom` 并依赖 `OPENAI_API_KEY` 回退 | 拒绝 | Hermes 有意不向第三方域名转发该通用凭据；绑定 `key_env` 的具名供应商通过了实时文本和工具调用探针。 |
+| 审批配置 | 使用概念值 `ask` | 修改 | Hermes 0.18 只支持 `manual`、`smart` 和 `off`；模板改为 `manual`，并通过实时请求和拒绝流程验证。 |
+| Mock Agent 行为 | 让 Mock 回复随机化或表现得像模型 | 拒绝 | 显式确定性路由诚实表达零 Key 行为，使验收可重复，同时保持相同运行、工具和审批协议。 |
+| 前端方向 | 使用深色开发者终端风格 | 拒绝 | 选择浅色企业控制台，让 HR 和工程人员在录屏中都能清晰阅读审批与 Trace。 |
+| 重复初始会话 | 关闭 React StrictMode | 拒绝 | 浏览器探针发现了重复副作用；项目保留 StrictMode，并通过初始化保护和回归测试修复。 |
+| 待办集成 | 在 Hermes 插件中直接持久化 | 拒绝 | 插件先提交带认证的阻塞提案；公开审批事务负责持久化，拒绝或重放不会产生副作用。 |
+| 开发者工具审批 | 依赖 Hermes 的危险命令识别 | 拒绝 | 它不会拦截每次 terminal/write/patch；项目 `pre_tool` hook 会对每次调用执行路径验证和应用审批。 |
+| 实时 Trace | 每个流式 Token 都渲染为一行 Trace | 修改 | 每个 delta 仍保存在 SQLite/SSE 中，但连续 delta 在界面折叠为一个生命周期节点，保证录屏清晰。 |
+| 取消行为 | 忽略与取消操作竞态的工具提案 | 拒绝 | 实时运行暴露了竞态；终止后的延迟提案会在产生审批事件前被拒绝，并有回归测试。 |
+| Hermes 可复现性 | 只把手动下载的压缩包写入文档 | 修改 | 已验证压缩包对应上游 commit `5445e42b`；安装脚本检出该不可变版本并验证三个关键哈希。 |
+| 发布准备 | 依赖一次人工密钥检查 | 拒绝 | 项目内发布检查会拒绝 macOS 用户路径、形似密钥的字符串、缺失交付文档或可变 Hermes 引用。 |
+| 全新安装 | 现有 editable install 足以证明 README 可用 | 拒绝 | 真正的空仓库 clone 暴露了 setuptools 包发现歧义；项目明确包发现规则并回归测试，再重跑整个启动流程。 |
+| 对话内运行位置 | 通过时间戳推断消息属于哪个运行 | 拒绝 | 并发、重试或延迟运行会使时间推断产生歧义；新增可空 `messages.run_id` 显式关系，同时兼容历史数据。 |
+| 重试显示 | 根据请求耗时猜测“正在重试” | 拒绝 | Hermes 重试日志不属于统一 SSE 协议；UI 只展示已观察到的工具事件和最终失败，不伪造进度。 |
+| Agent 活动布局 | 把每个 Trace 事件复制到对话流 | 修改 | Manus 风格卡片按运行分组，默认紧凑，展开后显示脱敏工具细节；Inspector 保留完整审计视图。 |
+| Runtime UX | 每次演示 Mock 或 Hermes 都重启不同服务 | 拒绝 | 按消息选择 Workflow/Real Agent，使同一会话保留两类运行并记录实际 Runtime；健康能力会禁用不可用的 Real Agent。 |
+| Mock 产品表达 | 把确定性路由包装成模拟 Agent | 修改 | UI 将零 Key 能力命名为 Workflow，诚实表达自然语言触发的预编排流程；README 明确它对应笔试要求的 Mock。 |
+| Workflow 范围 | 搬运私人决策支持项目及其数据平台 | 拒绝 | 只保留具名 Workflow 和可观察步骤的概念；`关键词分析` 使用合成数据、显式参数和确定性八类逻辑重新实现，不包含私人提示词或源码。 |
 
-Future entries use the same format: suggestion, adoption/modification/rejection,
-rationale, and concrete verification evidence.
+后续记录沿用相同格式：建议、采纳/修改/拒绝、理由和具体验证证据。
