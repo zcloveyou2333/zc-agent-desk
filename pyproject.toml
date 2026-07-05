@@ -18,3 +18,6 @@ testpaths = ["tests"]
 [tool.setuptools.packages.find]
 where = ["backend"]
 include = ["zc_agent_desk*"]
+
+[tool.setuptools.package-data]
+zc_agent_desk = ["workflows/*.json"]
