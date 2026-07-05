@@ -18,7 +18,7 @@ button:focus-visible, textarea:focus-visible { outline: 3px solid #93b4ff; outli
 button:disabled { cursor: not-allowed; opacity: .55; }
 
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: minmax(215px, 17vw) minmax(450px, 1fr) minmax(260px, 23vw);
   max-width: 1680px;
@@ -28,7 +28,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 }
 
 .conversation-rail, .inspector { background: #f7f9fc; padding: 28px 20px; }
-.conversation-rail { border-right: 1px solid var(--border); }
+.conversation-rail { display: flex; min-height: 0; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
 .inspector { border-left: 1px solid var(--border); overflow-y: auto; }
 .brand-block { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
 .brand-block strong { display: block; font-size: 16px; letter-spacing: -.02em; }
@@ -38,12 +38,12 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .runtime-badge span { width: 7px; height: 7px; border-radius: 50%; background: #29a36a; box-shadow: 0 0 0 3px #bcebd2; }
 .new-conversation { width: 100%; border: 0; border-radius: 10px; padding: 11px; color: white; background: var(--blue); font-weight: 650; box-shadow: 0 6px 16px #2463eb28; }
 .section-label { margin: 0 0 6px; text-transform: uppercase; letter-spacing: .11em; font-size: 10px; font-weight: 750; color: #8a96aa; }
-.conversation-rail nav { margin-top: 28px; }
+.conversation-rail nav { min-height: 0; margin-top: 28px; overflow-y: auto; }
 .conversation-item { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; border: 0; background: transparent; padding: 11px; border-radius: 9px; margin: 4px 0; color: #43506a; text-align: left; }
 .conversation-item small { color: #929daf; font-size: 10px; }
 .conversation-item.active { color: #174cad; background: var(--blue-soft); font-weight: 650; }
 
-.chat-workspace { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; background: #fff; }
+.chat-workspace { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: #fff; }
 .workspace-header { padding: 25px 30px 19px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
 .workspace-header h1 { margin: 0; font-size: 21px; letter-spacing: -.025em; }
 .online-state { font-size: 12px; color: #329365; background: #edf9f2; padding: 7px 10px; border-radius: 999px; }
@@ -132,10 +132,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .todo-item small { margin-top: 3px; color: #909bad; font-size: 9px; }
 
 @media (max-width: 900px) {
-  .app-shell { display: flex; flex-direction: column; }
+  .app-shell { display: flex; height: auto; min-height: 100vh; flex-direction: column; }
   .conversation-rail, .inspector { border: 0; }
-  .conversation-rail { border-bottom: 1px solid var(--border); }
-  .conversation-rail nav { display: flex; gap: 6px; overflow-x: auto; }
+  .conversation-rail { border-bottom: 1px solid var(--border); overflow: visible; }
+  .conversation-rail nav { display: flex; gap: 6px; overflow-x: auto; overflow-y: visible; }
   .conversation-rail nav .section-label { display: none; }
   .conversation-item { min-width: 150px; }
   .chat-workspace { min-height: 720px; }

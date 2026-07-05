@@ -18,12 +18,18 @@ deliberately excluded.
 
 ## Runtime modes
 
-- `mock`: offline, deterministic, and suitable for evaluation without API keys.
-- `hermes`: live OpenAI-compatible Chat Completions through a pinned Hermes
-  sidecar. The same FastAPI API, SQLite state, approval cards, and Trace UI are
-  used in both modes.
+- **Workflow**: the assignment's Mock implementation. It is offline,
+  deterministic, and runnable without API keys. This release includes the
+  named `关键词分析` workflow plus the existing order, todo, and context flows.
+- **Real Agent**: live OpenAI-compatible Chat Completions through a pinned
+  Hermes sidecar. The same FastAPI API, SQLite state, approval cards, and Trace
+  UI are used in both runtimes.
 
-## Quick start: Mock mode
+The composer switches runtime per message, so one conversation can contain
+both Workflow and Real Agent runs without restarting either service. Each run
+card records which runtime produced it.
+
+## Quick start: Workflow mode (zero-key Mock)
 
 Requirements: Python 3.11 or newer and Node.js 20 or newer. Mock mode does not
 read `OPENAI_API_KEY`, does not start Hermes, and does not require `.env`.
@@ -42,6 +48,8 @@ Open <http://127.0.0.1:5173>. The backend listens on
 
 Useful demo prompts:
 
+- `分析 2026年6月飘窗垫的关键词需求`
+- `分析 2026-06 办公背包的关键词需求`
 - `你好，我叫小雁`, followed by `我刚才说我叫什么？`
 - `查询订单 ORD-1001`
 - `查询订单 ORD-9999`
@@ -50,7 +58,11 @@ Useful demo prompts:
 SQLite data is stored at `data/zc-agent-desk.sqlite3` and survives refreshes.
 Delete that ignored file only when you intentionally want a fresh demo.
 
-## Start Hermes mode
+The keyword workflow uses synthetic data and emits six visible Trace steps:
+intent recognition, parameter extraction, data query, eight-category
+classification, trend calculation, and result rendering.
+
+## Start both runtimes
 
 Hermes mode additionally requires Git and the pinned Hermes source. The setup
 script checks out immutable commit `5445e42b`, verifies compatibility-critical
@@ -60,7 +72,7 @@ file hashes, and installs it under ignored `.vendor/` directories.
 ./scripts/setup_hermes.sh
 cp .env.example .env
 # Edit .env, then generate HERMES_API_KEY with: openssl rand -hex 32
-APP_MODE=hermes ./scripts/dev.sh
+./scripts/dev.sh
 ```
 
 Set `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `MODEL_NAME` for an
@@ -69,10 +81,17 @@ OpenAI-compatible Chat Completions endpoint that supports structured
 FastAPI and the loopback Hermes sidecar; it is not a provider key. Never paste
 these values into source files or commit `.env`.
 
-The script renders a secret-free isolated config into `.hermes/runtime`, starts
-FastAPI, starts Hermes, and starts React. On macOS, Hermes runs under the tracked
+With `APP_MODE=auto` (the template default), the script renders a secret-free
+isolated config into `.hermes/runtime`, starts FastAPI, starts Hermes when all
+required settings are present, and starts React. Use the composer buttons to
+switch between Workflow and Real Agent. On macOS, Hermes runs under the tracked
 `sandbox-exec` policy. On other systems, terminal/file toolsets are omitted by
 the config renderer while the two business tools remain available.
+
+Operational overrides remain available: `APP_MODE=mock` starts Workflow only;
+`APP_MODE=hermes` requires a complete Hermes configuration and fails fast when
+it is missing. `mock` is a compatibility name and is exposed as Workflow in the
+product UI.
 
 Hermes demo prompts:
 
@@ -109,8 +128,9 @@ The public application API currently includes:
 - `GET /api/todos`
 
 The frontend sends a run request, reconnectable SSE carries normalized events,
-and SQLite is the source of truth for refresh recovery. In Mock mode an
-explicit deterministic router selects tools. In Hermes mode the model selects
+and SQLite is the source of truth for refresh recovery. In Workflow mode an
+explicit deterministic registry/router selects a named workflow or business
+flow. In Real Agent mode the model selects
 tools; the plugin calls an authenticated FastAPI bridge and blocks write or
 developer actions until approval. Tool results return to the runtime before the
 final assistant response.
@@ -121,13 +141,13 @@ and the [recording checklist](docs/RECORDING.md).
 
 ## Current limitations
 
-- Mock intent routing is intentionally deterministic rather than pretending to
+- Workflow intent routing is intentionally deterministic rather than pretending to
   be a language model.
 - Authentication, deployment, RAG, and multi-user permissions are out of scope.
 - The third-party relay can be slow or time out; the app records a sanitized
   run failure and never exposes provider diagnostics or credentials.
 - The macOS policy is a local MVP safeguard, not a production security sandbox.
-- Hermes mode depends on a compatible OpenAI-style relay; Mock mode remains the
+- Real Agent depends on a compatible OpenAI-style relay; Workflow remains the
   portable evaluation path on every supported platform.
 
 ## Security

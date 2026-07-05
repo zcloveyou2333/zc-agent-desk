@@ -7,8 +7,8 @@ flowchart LR
     U[Employee] --> R[React workspace]
     R -->|HTTP + SSE| F[FastAPI control plane]
     F --> S[(SQLite)]
-    F -->|Mock mode| M[Deterministic runtime]
-    F -->|Hermes mode| H[Hermes sidecar]
+    F -->|Workflow per run| M[Workflow registry]
+    F -->|Real Agent per run| H[Hermes sidecar]
     H --> P[Project plugin]
     P -->|Authenticated bridge| F
     H --> L[OpenAI-compatible LLM]
@@ -16,7 +16,10 @@ flowchart LR
 
 React owns interaction and rendering. FastAPI owns the stable public contract,
 run state, persistence, approvals, event normalization, and runtime selection.
-Hermes owns only the live agent loop. The project plugin adds business tools and
+The selected runtime is stored on every run, allowing both modes in one
+conversation. The `关键词分析` Workflow is a deterministic six-step DAG over
+synthetic data; it emits the same normalized events as live tools. Hermes owns
+only the live agent loop. The project plugin adds business tools and
 approval hooks without changing upstream source. SQLite makes refresh and SSE
 reconnection recoverable instead of relying on browser memory.
 
@@ -31,7 +34,7 @@ Unpacked, not eleven source folders:
 | Message | FastAPI persists the user message and creates a run. |
 | History | Prior persisted messages are loaded for multi-turn context. |
 | System | Runtime instructions and available tools define behavior. |
-| API | Mock runs locally; Hermes calls the configured compatible endpoint. |
+| API | Workflow runs locally; Real Agent calls the configured compatible endpoint. |
 | Tokens | Streaming deltas become ordered `message.delta` events. |
 | Tools | Runtime selects and validates a business or developer tool. |
 | Loop | Tool results return to the runtime before final generation. |
@@ -59,8 +62,10 @@ are idempotent. Ordered event sequence numbers support SSE replay using
 
 ## Failure boundaries
 
-Provider diagnostics are sanitized before reaching the browser. Invalid tool
+Provider diagnostics are sanitized before reaching the browser. Selecting an
+unavailable Real Agent returns HTTP 503 before persisting a message or run and
+never silently falls back. Invalid tool
 arguments, unavailable Hermes, approval timeout, database failures, and
-cancellation become explicit terminal run states. Mock tests never call a
+cancellation become explicit terminal run states. Workflow tests never call a
 network service. The macOS execution policy is defense in depth for this local
 demo, not a production-grade security claim.

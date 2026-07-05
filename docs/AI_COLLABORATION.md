@@ -27,6 +27,9 @@ Secrets, private prompts, and unrelated machine information are excluded.
 | Inline run placement | Infer each run's messages from timestamps | Rejected | Concurrent, retried, or delayed runs make timestamp pairing ambiguous. An additive nullable `messages.run_id` migration gives the UI an explicit relationship while preserving old data. |
 | Retry display | Show guessed “retrying” states from a long-running request | Rejected | Hermes retry logs are not part of the normalized SSE contract. The UI shows only observed tool and final failure events rather than inventing progress. |
 | Agent activity layout | Copy every Trace event into the chat stream | Modified | The selected Manus-inspired card groups each run, stays compact by default, and expands to sanitized tool details; the Inspector remains the complete audit view. |
+| Runtime UX | Restart separate Mock and Hermes services for each demo | Rejected | Per-message Workflow/Real Agent selection preserves one conversation and records the runtime on each run; health capabilities disable Real Agent when unavailable. |
+| Mock product framing | Present deterministic routing as a simulated agent | Modified | The zero-key requirement is named Workflow in the UI: an honest pre-orchestrated natural-language flow, while README explicitly maps it to the required Mock capability. |
+| Workflow scope | Port the private decision-support project and its data platform | Rejected | Only the general named-workflow and observable-step concepts were retained. `关键词分析` was reimplemented with synthetic data, explicit parameters, deterministic eight-category logic, and no private prompts or source code. |
 
 Future entries use the same format: suggestion, adoption/modification/rejection,
 rationale, and concrete verification evidence.

@@ -2,8 +2,8 @@
 
 ## Current gate
 
-G5 - Public repository published; inline run trace feature is under review on a
-dedicated branch.
+G5 - Public repository published; Workflow runtime and per-message Real Agent
+selection are in final verification on a dedicated branch.
 
 ## Completed
 
@@ -34,6 +34,21 @@ dedicated branch.
   limitations, release checks, and the 8–12 minute recording plan.
 - Git history uses the approved public author identity, and `main` is published
   at `zcloveyou2333/zc-agent-desk` without local secrets or runtime data.
+- `关键词分析` is a six-step deterministic Workflow over synthetic keyword data,
+  with eight requirement categories and observable intermediate events.
+- The React composer selects Workflow or Real Agent per message, persists the
+  preference, disables unavailable Real Agent with a reason, and labels each
+  run card with its actual runtime.
+- `APP_MODE=auto` starts Workflow unconditionally and adds Hermes when its
+  executable and required environment are available; `mock` and `hermes`
+  remain explicit operational overrides.
+- Browser acceptance in `auto` mode completed the synthetic `2026-06 飘窗垫`
+  analysis, displayed all six ordered steps, recovered the result after
+  refresh, persisted the Real Agent selection, and kept both controls usable
+  without horizontal overflow at a 760px viewport.
+- That acceptance also exposed a long-history desktop layout bug. The three
+  desktop columns now stay within the viewport and scroll internally, keeping
+  the composer visible at 1280x720; the mobile layout retains page scrolling.
 
 ## G1 evidence and blockers
 
@@ -100,9 +115,9 @@ dedicated branch.
 
 ## Next action
 
-Review and merge `codex/inline-run-trace` after verification. Then record the
-8–12 minute demo and perform the final video privacy review before sending the
-repository and video links to HR.
+Complete full automated and browser verification of `codex/workflow-runtime`,
+then publish its stacked review branch. After merge, record the 8–12 minute
+demo and perform the final video privacy review before sending links to HR.
 
 ## Inline run trace evidence
 
