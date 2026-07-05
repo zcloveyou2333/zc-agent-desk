@@ -1,71 +1,60 @@
-# Architecture
+# 架构说明
 
-## System boundaries
+## 系统边界
 
 ```mermaid
 flowchart LR
-    U[Employee] --> R[React workspace]
-    R -->|HTTP + SSE| F[FastAPI control plane]
+    U[员工] --> R[React 工作区]
+    R -->|HTTP + SSE| F[FastAPI 控制平面]
     F --> S[(SQLite)]
-    F -->|Workflow per run| M[Workflow registry]
-    F -->|Real Agent per run| H[Hermes sidecar]
-    H --> P[Project plugin]
-    P -->|Authenticated bridge| F
+    F -->|按运行选择 Workflow| M[Workflow 注册表]
+    F -->|按运行选择 Real Agent| H[Hermes sidecar]
+    H --> P[项目插件]
+    P -->|带认证的桥接| F
     H --> L[OpenAI-compatible LLM]
 ```
 
-React owns interaction and rendering. FastAPI owns the stable public contract,
-run state, persistence, approvals, event normalization, and runtime selection.
-The selected runtime is stored on every run, allowing both modes in one
-conversation. The `关键词分析` Workflow is a deterministic six-step DAG over
-synthetic data; it emits the same normalized events as live tools. Hermes owns
-only the live agent loop. The project plugin adds business tools and
-approval hooks without changing upstream source. SQLite makes refresh and SSE
-reconnection recoverable instead of relying on browser memory.
+React 负责交互和渲染。FastAPI 负责稳定的公开协议、运行状态、持久化、审批、事件标准化和
+Runtime 选择。每次运行都会存储所选 Runtime，因此同一会话可以混合两种模式。
+`关键词分析` Workflow 是基于合成数据的确定性六步 DAG，发出与实时工具相同的标准事件。
+Hermes 只负责实时 Agent 循环。项目插件在不修改上游源码的前提下增加业务工具和审批 Hook。
+SQLite 让页面刷新和 SSE 重连能够恢复，而不是依赖浏览器内存。
 
-## Request lifecycle and Trace
+## 请求生命周期与 Trace
 
-The eleven labels below are an explanatory lifecycle adapted from Claude Code
-Unpacked, not eleven source folders:
+下面十一项是参考 Claude Code Unpacked 的解释性生命周期，不是十一个源码目录：
 
-| Stage | ZC Agent Desk responsibility |
+| 阶段 | ZC Agent Desk 的职责 |
 | --- | --- |
-| Input | React validates and sends the employee message. |
-| Message | FastAPI persists the user message and creates a run. |
-| History | Prior persisted messages are loaded for multi-turn context. |
-| System | Runtime instructions and available tools define behavior. |
-| API | Workflow runs locally; Real Agent calls the configured compatible endpoint. |
-| Tokens | Streaming deltas become ordered `message.delta` events. |
-| Tools | Runtime selects and validates a business or developer tool. |
-| Loop | Tool results return to the runtime before final generation. |
-| Render | React folds replayed events into chat, approval, and Trace views. |
-| Hooks | Project hooks enforce developer-tool policy and bridge correlation. |
-| Await | Write/developer tools block until approve, reject, timeout, or cancel. |
+| Input | React 校验并发送员工消息。 |
+| Message | FastAPI 持久化用户消息并创建运行。 |
+| History | 加载历史持久化消息作为多轮上下文。 |
+| System | Runtime 指令和可用工具共同定义行为。 |
+| API | Workflow 在本机运行；Real Agent 调用已配置的兼容接口。 |
+| Tokens | 流式 delta 转换为有序 `message.delta` 事件。 |
+| Tools | Runtime 选择并校验业务工具或开发者工具。 |
+| Loop | 最终生成前，工具结果返回 Runtime。 |
+| Render | React 把重放事件折叠为聊天、审批和 Trace 视图。 |
+| Hooks | 项目 Hook 执行开发者工具策略并维护桥接关联。 |
+| Await | 写工具和开发者工具阻塞，直到批准、拒绝、超时或取消。 |
 
-## Tool and approval flow
+## 工具与审批流程
 
-`query_mock_business` is a read and executes immediately. `create_todo` is a
-write: the plugin submits a proposal correlated by run ID, FastAPI persists an
-`approval.required` event, and the call blocks. Approval and effect persistence
-occur transactionally and idempotently; rejection or replay creates no todo.
-Terminal/file tools follow the same application approval path on macOS, plus a
-local `sandbox-exec` policy and realpath/symlink checks. They are disabled on
-other operating systems because working-directory configuration is not a
-sandbox.
+`query_mock_business` 是只读操作，会立即执行。`create_todo` 是写操作：插件提交与 run ID
+关联的提案，FastAPI 持久化 `approval.required` 事件，调用随后阻塞。审批与副作用持久化以
+事务和幂等方式完成；拒绝或重放不会创建待办。macOS 上的 terminal/file 工具使用相同应用
+审批路径，并额外经过本机 `sandbox-exec` 策略与 realpath/symlink 检查。其他操作系统会
+禁用这些工具，因为工作目录配置不等于沙箱。
 
-## Run and event contracts
+## 运行与事件协议
 
-Runs move through `queued -> running -> awaiting_approval -> running` and end
-as `completed`, `failed`, or `cancelled`. Approval and cancellation endpoints
-are idempotent. Ordered event sequence numbers support SSE replay using
-`Last-Event-ID`; final messages and tool outcomes are also persisted in SQLite.
+运行状态依次经过 `queued -> running -> awaiting_approval -> running`，最终进入
+`completed`、`failed` 或 `cancelled`。审批和取消接口均为幂等。有序事件序号支持使用
+`Last-Event-ID` 进行 SSE 重放；最终消息和工具结果也会写入 SQLite。
 
-## Failure boundaries
+## 故障边界
 
-Provider diagnostics are sanitized before reaching the browser. Selecting an
-unavailable Real Agent returns HTTP 503 before persisting a message or run and
-never silently falls back. Invalid tool
-arguments, unavailable Hermes, approval timeout, database failures, and
-cancellation become explicit terminal run states. Workflow tests never call a
-network service. The macOS execution policy is defense in depth for this local
-demo, not a production-grade security claim.
+供应商诊断信息在到达浏览器前会被脱敏。选择不可用的 Real Agent 时，会在持久化消息或运行
+之前返回 HTTP 503，绝不静默回退。无效工具参数、Hermes 不可用、审批超时、数据库失败和
+取消都会转化为显式终止状态。Workflow 测试不会调用网络服务。macOS 执行策略只是本机演示
+的纵深防御，不构成生产级安全声明。

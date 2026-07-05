@@ -1,23 +1,22 @@
-# ZC Agent Desk Implementation Plan
+# ZC Agent Desk 实施计划
 
-## Approval gates
+## 审批 Gate
 
-- G0: repository, design, decisions, and recovery baseline.
-- G1: pinned Hermes/API/plugin/approval/macOS-policy feasibility.
-- G2: deterministic mock vertical slice and reviewable UI.
-- G3: live Hermes integration and developer-tool security tests.
-- G4: release candidate, clean-clone verification, documentation, and secret scan.
-- G5: user-approved public repository and video submission.
+- G0：仓库、设计、决策和恢复基线。
+- G1：固定 Hermes 版本、API、插件、审批和 macOS 策略的可行性。
+- G2：确定性 Mock 纵向切片和可评审 UI。
+- G3：实时 Hermes 集成和开发者工具安全测试。
+- G4：Release Candidate、全新 clone 验证、文档和密钥扫描。
+- G5：用户批准后公开仓库并提交视频。
 
-## Execution order
+## 执行顺序
 
-1. Establish backend contracts and SQLite persistence with test-first cycles.
-2. Implement mock runs, tools, approval, SSE replay, and cancellation.
-3. Build the React client against those verified contracts.
-4. Add the pinned Hermes adapter and project plugin after G1 feasibility passes.
-5. Add macOS-only execution policy and negative security tests.
-6. Run full backend, frontend, end-to-end, build, and release checks.
+1. 以测试优先方式建立后端协议和 SQLite 持久化。
+2. 实现 Mock 运行、工具、审批、SSE 重放和取消。
+3. 基于已经验证的协议构建 React 客户端。
+4. G1 可行性通过后，加入固定版本的 Hermes Adapter 和项目插件。
+5. 加入仅限 macOS 的执行策略和反向安全测试。
+6. 运行完整后端、前端、端到端、构建和发布检查。
 
-Every behavior change starts with a failing test. Each gate ends with fresh
-verification output and a small commit before work moves forward.
-
+每项行为变更都从失败测试开始。每个 Gate 结束时都必须产生新的验证输出和小粒度 commit，
+通过后才能继续。

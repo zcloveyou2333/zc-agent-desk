@@ -1,58 +1,48 @@
-# ZC Agent Desk Design
+# ZC Agent Desk 设计说明
 
-## Goal
+## 目标
 
-Deliver an internal employee chatbot that demonstrates multi-turn conversation,
-model-selected tools, a real approval boundary for write operations, a zero-key
-mock mode, and an optional Hermes-backed runtime.
+交付一个内部员工 Chatbot，展示多轮对话、模型自主选择工具、写操作的真实审批边界、零 Key
+Mock 模式，以及可选的 Hermes Runtime。
 
-The product title is **ZC Agent Desk** and the byline is **Built by zcloveyou**.
+产品名称为 **ZC Agent Desk**，署名为 **由 zcloveyou 构建**。
 
-## Runtime boundaries
+## Runtime 边界
 
-- React owns input, rendering, approval controls, and the trace viewer.
-- FastAPI owns the public API, conversations, persistence, run state, mock
-  behavior, and normalization of runtime events.
-- Hermes runs as a sidecar and owns the live model/tool loop.
-- A project-local Hermes plugin supplies `query_mock_business` and
-  `create_todo` without patching Hermes core.
-- SQLite stores conversations, messages, runs, events, approvals, todos, and
-  deterministic mock orders.
+- React 负责输入、渲染、审批控件和 Trace 查看器。
+- FastAPI 负责公开 API、会话、持久化、运行状态、Mock 行为和 Runtime 事件标准化。
+- Hermes 作为 sidecar 运行，负责实时模型与工具循环。
+- 项目级 Hermes 插件提供 `query_mock_business` 和 `create_todo`，不修改 Hermes 核心。
+- SQLite 存储会话、消息、运行、事件、审批、待办和确定性 Mock 订单。
 
-The Input -> Message -> History -> System -> API -> Tokens -> Tools -> Loop ->
-Render -> Hooks -> Await sequence is an explanatory lifecycle and trace model,
-not an eleven-directory source layout.
+Input -> Message -> History -> System -> API -> Tokens -> Tools -> Loop ->
+Render -> Hooks -> Await 是解释生命周期和 Trace 的模型，不代表十一个源码目录。
 
-## Modes
+## 模式
 
-`APP_MODE=mock` needs no API key or Hermes installation. It must exercise the
-same public run, event, tool, and approval contracts as live mode.
+`APP_MODE=mock` 不需要 API Key 或 Hermes 安装，并且必须覆盖与实时模式相同的公开运行、
+事件、工具和审批协议。
 
-`APP_MODE=hermes` sends runs to a pinned Hermes sidecar configured with an
-OpenAI-compatible Chat Completions endpoint that supports structured tool
-calls. The model identifier is supplied through `MODEL_NAME`, matching the
-existing local project convention.
+`APP_MODE=hermes` 把运行发送到固定版本的 Hermes sidecar；后者连接支持结构化工具调用的
+OpenAI-compatible Chat Completions 接口。模型标识通过 `MODEL_NAME` 提供，与本地既有
+项目约定一致。
 
-## Tools
+## 工具
 
-- `query_mock_business(order_id)` is read-only and executes automatically.
-- `create_todo(title, due_at?, priority?)` pauses before persistence. Approval
-  creates exactly one todo; rejection, timeout, or replay creates none.
-- Hermes developer tools may expose terminal and file operations on macOS only.
-  Commands and mutations require approval. The operating-system policy is a
-  local safeguard, not a production-grade cross-platform sandbox.
+- `query_mock_business(order_id)` 是只读操作，会自动执行。
+- `create_todo(title, due_at?, priority?)` 在持久化前暂停。批准只创建一个待办；拒绝、超时
+  或重放不创建待办。
+- Hermes 开发者工具只在 macOS 上开放终端和文件操作，命令与修改均需审批。操作系统策略是
+  本机防护，不是生产级跨平台沙箱。
 
-## Run state
+## 运行状态
 
-Runs transition through `queued`, `running`, `awaiting_approval`, and one of
-`completed`, `failed`, or `cancelled`. Approval, rejection, and cancellation are
-idempotent.
+运行依次进入 `queued`、`running`、`awaiting_approval`，最后进入 `completed`、
+`failed` 或 `cancelled`。批准、拒绝和取消均为幂等。
 
-Public events are `message.delta`, `tool.started`, `approval.required`,
-`tool.completed`, `message.completed`, and `run.failed`. Events have monotonic
-sequence numbers so an SSE client can reconnect from its last seen event.
+公开事件包括 `message.delta`、`tool.started`、`approval.required`、`tool.completed`、
+`message.completed` 和 `run.failed`。事件使用单调递增序号，SSE 客户端可从最后看到的事件重连。
 
-## Deliberate exclusions
+## 有意排除的范围
 
-The MVP does not include authentication, deployment, retrieval-augmented
-generation, multi-user authorization, or complex multi-tool planning.
+MVP 不包含登录认证、线上部署、检索增强生成、多用户权限或复杂多工具规划。
