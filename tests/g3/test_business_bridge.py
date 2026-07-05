@@ -29,7 +29,7 @@ def load_plugin():
 def seed_run(app) -> tuple[str, str]:
     store = app.state.store
     conversation_id = store.create_conversation("bridge")["id"]
-    run_id = store.create_run(conversation_id)
+    run_id = store.create_run(conversation_id, "hermes")
     return conversation_id, run_id
 
 

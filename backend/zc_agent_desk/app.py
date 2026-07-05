@@ -10,7 +10,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .hermes import HermesClient
+from .workflows import default_registry
 
 
 TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
@@ -33,6 +34,7 @@ class ConversationCreate(BaseModel):
 
 class RunCreate(BaseModel):
     message: str = Field(min_length=1)
+    mode: Literal["workflow", "mock", "hermes"] | None = None
 
 
 class ApprovalCreate(BaseModel):
@@ -72,7 +74,7 @@ class Store:
                 CREATE TABLE IF NOT EXISTS runs (
                     id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL,
                     status TEXT NOT NULL, pending_tool TEXT, pending_args TEXT,
-                    upstream_run_id TEXT,
+                    upstream_run_id TEXT, runtime_mode TEXT NOT NULL DEFAULT 'workflow',
                     created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
                     FOREIGN KEY(conversation_id) REFERENCES conversations(id)
                 );
@@ -105,6 +107,8 @@ class Store:
             run_columns = {row[1] for row in db.execute("PRAGMA table_info(runs)").fetchall()}
             if "upstream_run_id" not in run_columns:
                 db.execute("ALTER TABLE runs ADD COLUMN upstream_run_id TEXT")
+            if "runtime_mode" not in run_columns:
+                db.execute("ALTER TABLE runs ADD COLUMN runtime_mode TEXT NOT NULL DEFAULT 'workflow'")
             message_columns = {row[1] for row in db.execute("PRAGMA table_info(messages)").fetchall()}
             if "run_id" not in message_columns:
                 db.execute("ALTER TABLE messages ADD COLUMN run_id TEXT REFERENCES runs(id)")
@@ -149,14 +153,14 @@ class Store:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def create_run(self, conversation_id: str) -> str:
+    def create_run(self, conversation_id: str, runtime_mode: str = "workflow") -> str:
         run_id = uuid.uuid4().hex
         timestamp = now()
         with self.connect() as db:
             db.execute(
-                """INSERT INTO runs(id, conversation_id, status, created_at, updated_at)
-                   VALUES (?, ?, 'running', ?, ?)""",
-                (run_id, conversation_id, timestamp, timestamp),
+                """INSERT INTO runs(id, conversation_id, status, runtime_mode, created_at, updated_at)
+                   VALUES (?, ?, 'running', ?, ?, ?)""",
+                (run_id, conversation_id, runtime_mode, timestamp, timestamp),
             )
         return run_id
 
@@ -295,19 +299,55 @@ def execute_mock(store: Store, conversation_id: str, run_id: str, message: str) 
     return "completed"
 
 
+def execute_workflow(store: Store, conversation_id: str, run_id: str, message: str) -> str:
+    workflow = default_registry().match(message)
+    if not workflow:
+        return execute_mock(store, conversation_id, run_id, message)
+    try:
+        result = workflow.execute(message)
+        for step in result.steps:
+            tool = str(step["tool"])
+            store.add_event(
+                run_id,
+                "tool.started",
+                {"tool": tool, "arguments": step.get("arguments", {})},
+            )
+            store.add_event(
+                run_id,
+                "tool.completed",
+                {
+                    "tool": tool,
+                    "duration": 0.0,
+                    "error": False,
+                    "result": step.get("result", {}),
+                },
+            )
+        assistant_message(store, run_id, conversation_id, result.content)
+        return "completed"
+    except Exception:
+        store.add_event(run_id, "run.failed", {"message": "Workflow 执行失败"})
+        store.set_run(run_id, "failed")
+        return "failed"
+
+
 def create_app(
     database_path: str | Path = "./data/zc-agent-desk.sqlite3",
     *,
     mode: str | None = None,
     hermes_client: Any | None = None,
+    hermes_enabled: bool | None = None,
     bridge_key: str | None = None,
     proposal_timeout: float = 300,
 ) -> FastAPI:
     store = Store(Path(database_path))
     runtime_mode = mode or os.getenv("APP_MODE", "mock")
-    if runtime_mode not in {"mock", "hermes"}:
-        raise ValueError("APP_MODE must be mock or hermes")
-    if runtime_mode == "hermes" and hermes_client is None:
+    if runtime_mode not in {"auto", "mock", "hermes"}:
+        raise ValueError("APP_MODE must be auto, mock, or hermes")
+    if hermes_enabled is None:
+        hermes_enabled = runtime_mode == "hermes" or (
+            runtime_mode == "auto" and (hermes_client is not None or os.getenv("HERMES_ENABLED") == "1")
+        )
+    if hermes_enabled and hermes_client is None:
         hermes_client = HermesClient(
             os.getenv("HERMES_BASE_URL", "http://127.0.0.1:8642"),
             os.getenv("HERMES_API_KEY", ""),
@@ -327,6 +367,7 @@ def create_app(
     app = FastAPI(title="ZC Agent Desk API", lifespan=lifespan)
     app.state.store = store
     app.state.mode = runtime_mode
+    app.state.hermes_enabled = hermes_enabled
     app.state.hermes_client = hermes_client
     app.state.tasks = tasks
     app.add_middleware(
@@ -337,8 +378,14 @@ def create_app(
     )
 
     @app.get("/api/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok", "mode": runtime_mode}
+    def health() -> dict[str, Any]:
+        runtimes: dict[str, dict[str, Any]] = {
+            "workflow": {"available": True},
+            "hermes": {"available": bool(hermes_enabled)},
+        }
+        if not hermes_enabled:
+            runtimes["hermes"]["reason"] = "Real Agent 尚未配置"
+        return {"status": "ok", "mode": runtime_mode, "runtimes": runtimes}
 
     def require_bridge_auth(provided: str | None) -> None:
         if not internal_bridge_key or not provided or not hmac.compare_digest(
@@ -470,10 +517,14 @@ def create_app(
     async def create_run(conversation_id: str, body: RunCreate) -> dict[str, str]:
         if not store.conversation(conversation_id):
             raise HTTPException(404, "Conversation not found")
-        run_id = store.create_run(conversation_id)
+        requested_mode = body.mode or ("hermes" if runtime_mode == "hermes" else "workflow")
+        requested_mode = "workflow" if requested_mode == "mock" else requested_mode
+        if requested_mode == "hermes" and not hermes_enabled:
+            raise HTTPException(503, "Real Agent 尚未配置")
+        run_id = store.create_run(conversation_id, requested_mode)
         store.add_message(conversation_id, "user", body.message, run_id)
-        if runtime_mode == "mock":
-            status = execute_mock(store, conversation_id, run_id, body.message)
+        if requested_mode == "workflow":
+            status = execute_workflow(store, conversation_id, run_id, body.message)
         else:
             history = [
                 {"role": item["role"], "content": item["content"]}
@@ -528,7 +579,7 @@ def create_app(
             raise HTTPException(409, "Run is not awaiting approval")
         store.record_approval(run_id, body.decision)
         args = json.loads(run["pending_args"])
-        if runtime_mode == "hermes":
+        if run["runtime_mode"] == "hermes":
             if run["pending_tool"] == "create_todo" and body.decision == "approve":
                 store.create_todo(run_id, args)
             store.set_run(run_id, "running")
@@ -553,7 +604,7 @@ def create_app(
         if not replayed:
             if run["status"] in TERMINAL_STATUSES:
                 return {"run_id": run_id, "status": run["status"], "replayed": True}
-            if runtime_mode == "hermes" and run.get("upstream_run_id"):
+            if run["runtime_mode"] == "hermes" and run.get("upstream_run_id"):
                 await hermes_client.cancel(run["upstream_run_id"])
             store.set_run(run_id, "cancelled")
         return {"run_id": run_id, "status": "cancelled", "replayed": replayed}
