@@ -19,6 +19,7 @@ def test_local_hermes_auth_is_optional_and_blank_by_default() -> None:
     env_example = (ROOT / ".env.example").read_text()
 
     assert "HERMES_API_KEY=\n" in env_example
+    assert "APP_MODE=auto" in env_example
 
 
 def test_relay_key_is_explicitly_bound_to_named_custom_provider() -> None:

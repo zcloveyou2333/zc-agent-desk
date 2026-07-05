@@ -14,7 +14,9 @@ fi
 if [[ -n "$REQUESTED_MODE" ]]; then
   APP_MODE="$REQUESTED_MODE"
 fi
-export APP_MODE="${APP_MODE:-mock}"
+# shellcheck disable=SC1091
+source scripts/runtime_mode.sh
+resolve_runtime_mode "$ROOT" "${APP_MODE:-auto}"
 
 if [[ ! -x .venv/bin/uvicorn ]]; then
   echo "Backend environment missing. Run: .venv/bin/python -m pip install -e '.[dev]'" >&2
@@ -33,15 +35,7 @@ trap cleanup EXIT INT TERM
 PYTHONPATH=backend .venv/bin/uvicorn zc_agent_desk.app:app --host 127.0.0.1 --port 8000 &
 BACKEND_PID=$!
 
-if [[ "$APP_MODE" == "hermes" ]]; then
-  if [[ ! -x .vendor/hermes-venv/bin/hermes ]]; then
-    echo "Hermes environment missing. Complete the pinned Hermes setup first." >&2
-    exit 1
-  fi
-  if [[ -z "${HERMES_API_KEY:-}" ]]; then
-    echo "HERMES_API_KEY is required for Hermes mode." >&2
-    exit 1
-  fi
+if [[ "$HERMES_ENABLED" == "1" ]]; then
   .venv/bin/python scripts/render_hermes_config.py
   export API_SERVER_KEY="$HERMES_API_KEY"
   export HERMES_HOME="$ROOT/.hermes/runtime"
