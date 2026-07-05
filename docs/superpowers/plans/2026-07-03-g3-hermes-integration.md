@@ -1,75 +1,63 @@
-# G3 Hermes Integration Implementation Plan
+# G3 Hermes 集成实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **执行要求：** 使用 `superpowers:executing-plans` 或 `superpowers:subagent-driven-development`，按任务逐项执行并验证。
 
-**Goal:** Connect the persisted FastAPI application to Hermes 0.18 so live model-selected tools, application approvals, and macOS developer-tool controls use the same public API and React UI as Mock mode.
+**目标：** 把持久化 FastAPI 应用连接到 Hermes 0.18，使实时模型自主选择工具，同时沿用公开 API、审批和 React UI。
 
-**Architecture:** FastAPI starts a local run and asynchronously mirrors a Hermes `/v1/runs` SSE stream into normalized SQLite events. It passes the local run ID as Hermes `session_id`, allowing the project plugin to call authenticated internal endpoints for order reads and blocking approval proposals. A plugin `pre_tool_call` hook applies workspace path checks and application approval to terminal, write, and patch without changing Hermes core.
+**架构：** FastAPI 异步启动 Hermes `/v1/runs`，把 sidecar SSE 统一为本地事件并写入 SQLite。
+本地 run ID 作为 `session_id` 传递，项目插件通过带认证桥接调用业务工具和阻塞审批，不修改 Hermes 核心。
 
-**Tech Stack:** FastAPI, SQLite, HTTPX, Hermes project plugin, pytest, macOS `sandbox-exec`.
+**技术栈：** FastAPI、SQLite、HTTPX、Hermes 项目插件、pytest、macOS `sandbox-exec`。
 
 ---
 
-### Task 1: Hermes Client and Event Normalization
+### 任务 1：Hermes Client 与事件标准化
 
-**Files:**
-- Create: `backend/zc_agent_desk/hermes.py`
-- Test: `tests/g3/test_hermes_adapter.py`
+**文件：** `backend/zc_agent_desk/hermes.py`、`tests/g3/test_hermes_client.py`
 
-- [ ] Write a failing test with `httpx.MockTransport` covering run creation, `session_id`, conversation history, bearer authentication, SSE parsing, approval forwarding, cancellation, and upstream error mapping.
-- [ ] Run `.venv/bin/pytest tests/g3/test_hermes_adapter.py -q` and confirm the import fails.
-- [ ] Implement `HermesClient.start_run`, `events`, `approve`, and `cancel` with no knowledge of SQLite or FastAPI.
-- [ ] Run the focused test and commit as `feat: add hermes sidecar client`.
+- [ ] 使用 `httpx.MockTransport` 先写失败测试，覆盖运行创建、`session_id`、历史消息、Bearer 认证、SSE、审批、取消和上游错误。
+- [ ] 实现 `HermesClient.start_run`、`events`、`approve` 和 `cancel`，不耦合 SQLite。
+- [ ] 把 Hermes 事件映射为公开 `message.delta`、`tool.started`、`tool.completed`、`message.completed` 和 `run.failed`。
+- [ ] 运行：`.venv/bin/pytest -q tests/g3/test_hermes_client.py`
 
-### Task 2: Live Application Runtime
+### 任务 2：实时应用 Runtime
 
-**Files:**
-- Modify: `backend/zc_agent_desk/app.py`
-- Test: `tests/g3/test_live_runtime.py`
+**文件：** `backend/zc_agent_desk/app.py`、`tests/g3/test_live_runtime.py`
 
-- [ ] Write failing API tests that create a live run, observe normalized `message.delta`, tool, completion, and failure events, persist the final assistant response, and forward cancellation.
-- [ ] Add `mode` and injected Hermes client parameters to `create_app`; keep Mock behavior unchanged.
-- [ ] Start Hermes consumption in a FastAPI background task, persist the upstream run ID, normalize public events, and map terminal outcomes to application status.
-- [ ] Run all backend tests and commit as `feat: add live hermes runtime adapter`.
+- [ ] 为 `create_app` 增加模式和可注入 Hermes Client，保留 Mock 行为。
+- [ ] 后台消费 Hermes SSE，持久化上游 run ID、统一事件和最终消息。
+- [ ] 审批与取消转发到 sidecar；终止状态必须幂等。
+- [ ] 测试助手回复、失败脱敏、取消和刷新恢复。
 
-### Task 3: Authenticated Business Tool Bridge
+### 任务 3：带认证的业务工具桥接
 
-**Files:**
-- Modify: `.hermes/plugins/zc-agent-desk/__init__.py`
-- Modify: `backend/zc_agent_desk/app.py`
-- Test: `tests/g3/test_business_bridge.py`
-- Test: `tests/g1/test_hermes_plugin_contract.py`
+**文件：** `.hermes/plugins/zc-agent-desk/`、`backend/zc_agent_desk/app.py`、`tests/g3/test_business_bridge.py`
 
-- [ ] Write failing tests for bridge authentication, existing/missing order responses, todo proposal state, approval-before-persistence, rejection, replay, and proposal timeout.
-- [ ] Implement plugin HTTP calls using `ZC_AGENT_DESK_BASE_URL`, `HERMES_API_KEY`, and handler `session_id`; never log either credential.
-- [ ] Add internal FastAPI endpoints for order reads and blocking todo proposals. Proposal registration emits one `approval.required` event; the handler waits for a persisted approval decision before returning to Hermes.
-- [ ] Keep todo insertion in the public approval transaction so the UI sees the side effect immediately and the unique run constraint prevents replay.
-- [ ] Run focused and full tests, then commit as `feat: connect hermes business tools`.
+- [ ] 注册 `query_mock_business` 和 `create_todo` Schema。
+- [ ] 订单读取直接执行；未知订单返回 HTTP 200 和 `{found: false}`。
+- [ ] 待办提案写入 `approval.required` 后阻塞，批准时事务性创建一次，拒绝/超时/重放不产生副作用。
+- [ ] 使用 `HERMES_API_KEY` 保护内部桥接接口。
 
-### Task 4: Developer Tool Approval and Path Policy
+### 任务 4：开发者工具审批与路径策略
 
-**Files:**
-- Create: `.hermes/plugins/zc-agent-desk/policy.py`
-- Modify: `.hermes/plugins/zc-agent-desk/__init__.py`
-- Create: `scripts/render_hermes_config.py`
-- Test: `tests/g3/test_developer_tool_policy.py`
+**文件：** 项目插件 Hook、`backend/zc_agent_desk/security.py`、`config/macos-hermes.sb`
 
-- [ ] Write failing tests for relative workspace paths, absolute outside paths, `..` traversal, existing symlink escape, V4A patch headers, terminal workdir escape, and non-macOS denial.
-- [ ] Implement `realpath`-based validation. Require approval for every terminal, write, and patch call; reject unverifiable multi-file patch input before approval.
-- [ ] Register a synchronous `pre_tool_call` hook that blocks until the authenticated application proposal is approved, returns a plugin block directive on rejection, and otherwise allows Hermes to execute.
-- [ ] Generate runtime config from the tracked template: macOS keeps terminal/file toolsets and other systems omit them. No secret value enters generated or tracked YAML.
-- [ ] Run security and plugin tests, then commit as `feat: enforce hermes developer tool policy`.
+- [ ] `pre_tool_call` 对每次 terminal、write、patch 执行应用审批，不依赖 Hermes 危险命令分类。
+- [ ] 路径经过 realpath 和 symlink 越界检查，拒绝绝对路径、路径穿越和工作区外修改。
+- [ ] macOS 使用 `sandbox-exec` 约束；其他系统不暴露开发者工具。
+- [ ] 原生 Hermes 审批设为 `off`，避免双重提示。
 
-### Task 5: Live Verification and Gate Record
+### 任务 5：实时验证与 Gate 记录
 
-**Files:**
-- Modify: `scripts/dev.sh`
-- Modify: `README.md`
-- Modify: `docs/PROGRESS.md`
-- Modify: `docs/DECISIONS.md`
-- Modify: `docs/AI_COLLABORATION.md`
+- [ ] 验证普通回复、多轮历史和模型自主订单工具调用。
+- [ ] 验证待办审批只持久化一次，终端拒绝阻止执行。
+- [ ] 验证中转超时转为脱敏失败状态。
+- [ ] 运行：
 
-- [ ] Start FastAPI in Hermes mode, render the isolated Hermes config, and start the pinned sidecar under the macOS sandbox.
-- [ ] In the React UI verify ordinary text, history, `ORD-1001`, todo approval, todo rejection, terminal approval denial, and refresh recovery.
-- [ ] Run backend, frontend, production build, source-lock check, secret scan, and `git diff --check`.
-- [ ] Record exact evidence and limitations, commit as `docs: complete g3 hermes integration`, and stop at the G4 approval gate.
+```bash
+.venv/bin/pytest -q
+npm --prefix frontend test -- --run
+npm --prefix frontend run build
+```
+
+- [ ] 更新 README、架构、进度和 AI 协作记录后提交 G3。
