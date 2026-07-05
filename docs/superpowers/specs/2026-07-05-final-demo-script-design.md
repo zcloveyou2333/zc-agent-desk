@@ -1,65 +1,52 @@
-# Final Demo Script Design
+# 最终演示讲稿设计
 
-## Goal
+## 目标
 
-Produce a roughly ten-minute Chinese screen recording that demonstrates both
-the stable zero-key Workflow path and a live Hermes-backed Real Agent path. The
-recording should emphasize engineering judgment, observable execution, and a
-runnable delivery rather than enumerate every feature.
+制作约十分钟中文录屏，同时展示稳定的零 Key Workflow 和实时 Hermes Real Agent。录屏重点是
+工程判断、可观察执行和可运行交付，不逐项罗列全部功能。
 
-## Narrative
+## 叙事主线
 
-The recording follows one argument: ZC Agent Desk supports the same persisted
-conversation and Trace contract across two honest runtime choices.
+ZC Agent Desk 在同一套持久化会话和 Trace 协议上提供两个诚实的 Runtime 选择：
 
-1. Workflow provides deterministic, zero-key business automation.
-2. Real Agent lets a model select tools while application approvals control
-   side effects.
-3. Shared persistence, normalized events, tests, and explicit limitations make
-   both paths reviewable.
+1. Workflow 提供确定性、零 Key 的业务自动化；
+2. Real Agent 允许模型自主选择工具，同时由应用审批控制副作用；
+3. 共享持久化、统一事件、自动化测试和明确限制让两条路径都可评审。
 
-## Timeline
+## 时间线
 
-| Time | Screen | Purpose |
+| 时间 | 画面 | 目的 |
 | --- | --- | --- |
-| 0:00–1:00 | Application and README | State the employee-chatbot problem, deliverable, and excluded scope. |
-| 1:00–2:00 | Architecture document | Explain React, FastAPI, SQLite, runtime selection, Hermes sidecar, and normalized events. |
-| 2:00–4:00 | Workflow UI | Run `分析 2026年6月飘窗垫的关键词需求`, expand all six steps, and explain synthetic data and zero-key operation. |
-| 4:00–6:30 | Real Agent UI | Switch without restarting, query `ORD-1001`, create one todo, and approve the blocked write. |
-| 6:30–8:00 | Inline cards and Agent Trace | Show tool details, failure visibility, persistence, and the distinction between concise chat activity and complete audit Trace. |
-| 8:00–9:15 | AI collaboration record | Explain three rejected or modified suggestions: no Hermes rewrite, no fake model-like Mock, and no `cwd`-as-sandbox claim. |
-| 9:15–10:00 | Verification output and limitations | Show tests, build, release scan, pinned Hermes revision, relay risk, and local sandbox limitations. |
+| 0:00–1:00 | 应用与 README | 说明员工 Chatbot 问题、交付范围和排除项。 |
+| 1:00–2:00 | 架构文档 | 说明 React、FastAPI、SQLite、Runtime 选择、Hermes sidecar 和统一事件。 |
+| 2:00–4:00 | Workflow UI | 运行 `分析 2026年6月飘窗垫的关键词需求`，展开六步，解释合成数据和零 Key。 |
+| 4:00–6:30 | Real Agent UI | 无需重启直接切换，查询 `ORD-1001`，创建一个待办并批准阻塞写入。 |
+| 6:30–8:00 | 对话内卡片与 Trace | 展示工具细节、失败可见性、持久化，以及简洁活动卡与完整审计 Trace 的区别。 |
+| 8:00–9:15 | AI 协作记录 | 说明三个取舍：不重写 Hermes、不伪装 Mock 模型、不把 `cwd` 当沙箱。 |
+| 9:15–10:00 | 验证输出与限制 | 展示测试、构建、发布扫描、固定 Hermes 版本、中转站风险和本机沙箱限制。 |
 
-## Live Prompts
+## 现场提示词
 
-- Workflow: `分析 2026年6月飘窗垫的关键词需求`
-- Real read: `请查询订单 ORD-1001，并告诉我状态`
-- Real write: `请直接使用 create_todo 工具创建待办：检查最终录屏。不要调用其他工具。`
+- Workflow：`分析 2026年6月飘窗垫的关键词需求`
+- Real Agent 读取：`请查询订单 ORD-1001，并告诉我状态`
+- Real Agent 写入：`请直接使用 create_todo 工具创建待办：检查最终录屏。不要调用其他工具。`
 
-The presenter waits for each final response before starting the next prompt and
-expands only one representative activity card to keep the recording moving.
+每个提示词等待最终回复后再继续，只展开一张代表性活动卡，控制录屏节奏。
 
-## Failure Handling
+## 故障处理
 
-If the relay is slow, wait briefly while explaining that Real Agent is an
-external dependency. If it reaches an explicit failure, show the persisted red
-failure card and Agent Trace, state that the zero-key Workflow remains usable,
-and continue to verification evidence. Do not retry repeatedly or imply that a
-failed live run succeeded.
+中转站较慢时，短暂等待并说明 Real Agent 依赖外部服务。如果出现显式失败，展示持久化红色
+失败卡和 Agent Trace，说明零 Key Workflow 仍可使用，然后继续展示验证证据。不要反复重试，
+也不要暗示失败的现场运行已经成功。
 
-## Privacy and Presentation
+## 隐私与展示
 
-- Never show `.env`, provider URLs, API dashboards, terminal history, browser
-  bookmarks, notifications, or account details.
-- Prepare one clean conversation and clear irrelevant demo history before
-  recording.
-- Keep the terminal limited to known verification commands and their final
-  summaries.
-- Perform a full-speed review and a frame-by-frame privacy review before
-  sharing the video.
+- 不显示 `.env`、供应商 URL、API 控制台、终端历史、书签、通知或账户信息。
+- 录制前准备一个干净会话并清除无关演示历史。
+- 终端只展示已知验证命令及最终摘要。
+- 分享前进行一次正常速度复看和一次逐帧隐私检查。
 
-## Deliverable
+## 交付物
 
-The final script will be added to `docs/FINAL_DEMO_SCRIPT.md`. Each segment will
-contain: target time, screen action, natural Chinese narration, and a concise
-fallback line where live behavior can vary.
+最终逐字稿写入 `docs/FINAL_DEMO_SCRIPT.md`，每段包含目标时间、屏幕操作、自然中文旁白和
+实时行为变化时的简短兜底台词。

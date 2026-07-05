@@ -1,112 +1,66 @@
-# Inline Run Trace Design
+# 对话内运行 Trace 设计
 
-## Goal
+## 目标
 
-Make agent execution visible inside the conversation, following the compact
-Manus-style pattern selected by the user, while preserving the right-hand
-Agent Trace as the complete audit view. Tool progress and failures must become
-understandable without exposing credentials, provider payloads, stack traces,
-or private local paths.
+在聊天流中展示工具调用和失败信息，形成类似 Manus 的紧凑 Agent 活动体验，同时保留右侧
+Inspector 作为完整审计 Trace。用户无需在聊天和 Trace 之间来回比对，就能理解本轮运行。
 
-## Selected interaction
+## 选定交互
 
-Each user turn that creates a run owns one inline execution card positioned
-between the user message and the final assistant reply. The card is compact by
-default and expandable:
+每条用户消息后插入一张运行活动卡，最终助手回复显示在卡片之后：
 
-- Running: `正在调用 查询业务订单…`
-- Completed: `已完成 1 个工具调用 · 0.01 秒`
-- Failed: a friendly summary such as `模型请求失败`
-- Awaiting approval: the existing approval controls remain visible inside the
-  same turn group.
+- 默认折叠，只显示运行中、等待审批、完成或失败摘要；
+- 展开后显示按顺序排列的工具、脱敏参数、结果、耗时和失败详情；
+- 审批仍使用独立高可见卡片，不隐藏在折叠内容中；
+- 无工具运行显示“运行已完成”，避免把普通回答伪装成工具调用。
 
-Expanded content lists ordered tool steps with display names, sanitized
-arguments, result summaries, durations, and sanitized technical failure data.
-The card does not reproduce token-delta events because those are generation
-transport details rather than user-meaningful actions.
+## 数据模型与 API
 
-## Data model and API
+在 `messages` 增加可空 `run_id`，通过增量迁移兼容历史数据库。新用户消息和助手回复都写入
+对应 run ID；`GET /api/conversations/{id}` 返回该关联。运行事件继续以 SQLite 为事实来源，
+不新增第二套活动协议。
 
-Messages gain a nullable `run_id`. The user message inserted by `create_run`
-and the final assistant message produced by that run carry the same run ID.
-This explicit relationship is required to place cards correctly; timestamp
-inference is rejected because concurrent or retried runs would be ambiguous.
+## 前端结构
 
-SQLite initialization performs an additive migration for existing databases.
-Historical messages without `run_id` continue to render normally. The
-conversation detail API includes `run_id` on messages and already includes
-runs with ordered events, so no new public endpoint is required.
+- `runActivity.ts`：把原始事件折叠为稳定的活动 ViewModel，并负责参数脱敏和工具中文标签。
+- `RunActivityCard.tsx`：渲染可访问的折叠/展开卡片。
+- `ChatWorkspace.tsx`：根据 `message.run_id` 把卡片放到用户消息和助手回复之间。
+- `App.tsx`：流式事件按 `(run_id, sequence)` 合并，最终再从后端刷新。
+- `Inspector.tsx`：继续展示完整事件，并把失败工具和运行标红。
 
-## Frontend structure
+## 事件呈现
 
-A focused `RunActivityCard` component converts one run's events into a view
-model. `ChatWorkspace` groups messages by `run_id`, renders the user message,
-then its activity card and approval UI, then the assistant response. Unlinked
-historical messages remain in chronological order.
+| 事件 | 对话内呈现 |
+| --- | --- |
+| `tool.started` | 新增“进行中”工具步骤。 |
+| `approval.required` | 步骤进入“等待审批”，并显示审批卡。 |
+| `tool.completed` | 标记完成或失败，显示脱敏结果和耗时。 |
+| 连续 `message.delta` | 不逐 Token 生成步骤，只在 Inspector 折叠为“生成回复”。 |
+| `run.failed` | 活动卡标红并显示脱敏失败详情。 |
 
-`App` merges each incoming SSE event into the active conversation detail using
-the `(run_id, sequence)` identity, then refreshes once after the stream ends.
-This provides immediate tool-state changes without polling and preserves the
-database as the final source of truth after refresh or reconnection.
+工具标签包括 `query_mock_business`、`create_todo`、`terminal`、`write_file`、`patch`
+和 `apply_patch`；未知工具回退显示原始名称。
 
-The right-hand `Inspector` keeps collapsed token deltas but adds state-specific
-styling and details:
+## 故障行为
 
-- `tool.completed` with `error: true` is a failed tool node.
-- `run.failed` is a failed run node.
-- Failure nodes show a friendly summary and an expandable sanitized detail.
+模型或中转站失败使用 `run.failed` 的已脱敏 `message`。工具结果中的敏感键名（Key、Token、
+Secret、Authorization、Password）显示为 `[已隐藏]`，长字符串截断。UI 不根据耗时猜测
+Hermes 是否重试，只展示协议中实际观察到的状态。
 
-## Event presentation
+## 无障碍与响应式
 
-Tool display names are mapped in the frontend:
+活动卡使用真实 button、`aria-expanded` 和文字状态，不只依赖颜色。窄屏卡片取消左右缩进，
+代码内容允许换行和内部滚动。
 
-- `query_mock_business` -> `查询业务订单`
-- `create_todo` -> `创建待办`
-- `terminal` -> `执行终端命令`
-- file write/patch tools -> `修改文件`
+## 测试策略
 
-Unknown tools fall back to their protocol name. Arguments are rendered from
-the normalized application event only. Long values are truncated. Keys whose
-names contain `key`, `token`, `secret`, `authorization`, or `password` are
-replaced with `[已隐藏]`. Result summaries use normalized fields and never raw
-provider responses.
+- 后端迁移、消息关联、实时失败关联和历史 null 数据回归测试；
+- ViewModel 对运行、完成、审批、工具失败、运行失败和脱敏的单元测试；
+- 组件折叠、展开和可访问名称测试；
+- App 流式合并与去重测试；
+- 浏览器验证订单工具、失败显示、刷新恢复和 760px 布局。
 
-## Failure behavior
+## 排除范围
 
-The application currently receives final Hermes failures but not its internal
-retry log stream. This release therefore shows final `run.failed` and failed
-`tool.completed` events accurately; it does not invent retry progress. If the
-sidecar protocol later exposes retry events, they can be added without changing
-the card boundary.
-
-User-facing summaries are stable and localized. Expandable technical details
-may include a sanitized error category and application message. API keys,
-provider bodies, traceback text, provider account data, and absolute local
-paths are excluded at the backend boundary.
-
-## Accessibility and responsive behavior
-
-The card uses a native button for expansion with `aria-expanded`. Status is
-communicated through text and icon as well as color. The card fits the existing
-chat width and becomes a single-column detail list on narrow screens.
-
-## Test strategy
-
-- Backend migration: old databases gain nullable `run_id` without data loss.
-- Backend correlation: user and assistant messages share the creating run ID.
-- View model: running, successful, failed-tool, failed-run, and unknown-tool
-  events produce stable summaries and sanitized details.
-- Component: cards expand/collapse and failed states are accessible.
-- Streaming: meaningful events appear before completion and duplicate replayed
-  events are ignored.
-- Inspector: failed tool and run events use failure styling and expose the
-  sanitized summary.
-- Regression: approvals, refresh recovery, Mock mode, Hermes mode, and the
-  production build continue to pass.
-
-## Out of scope
-
-- Surfacing Hermes internal retry attempts before its run terminates.
-- Persisting or displaying chain-of-thought/reasoning tokens.
-- Rendering raw tool/provider payloads.
-- Redesigning the conversation rail, composer, or todo inspector.
+不展示 Hermes 内部思维过程，不猜测未进入 SSE 的重试，不加入独立任务面板，也不复制右侧
+完整 Trace 的全部事件。

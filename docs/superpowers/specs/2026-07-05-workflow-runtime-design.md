@@ -1,42 +1,30 @@
-# Workflow Runtime and Keyword Analysis Design
+# Workflow Runtime 与关键词分析设计
 
-## Goal
+## 目标
 
-Let users switch between a zero-key deterministic Workflow runtime and the
-Hermes-backed Real Agent without restarting the application. Introduce one
-formal multi-step workflow, named `关键词分析`, that preserves the useful
-classification and aggregation logic from the private decision-support project
-while using only synthetic public data.
+让用户无需重启应用即可在零 Key 确定性 Workflow 与 Hermes Real Agent 之间切换，并加入一个
+正式命名为 `关键词分析` 的多步 Workflow。其设计保留原决策支持项目中“具名流程、显式步骤和
+结构化中间结果”的有效思想，但不复制私人数据、提示词或源码。
 
-## Product language and assignment compatibility
+## 产品用语与笔试兼容性
 
-The UI exposes two choices:
+UI 使用两个名称：
 
-- **Workflow** — pre-orchestrated business flows triggered by natural language,
-  with no API key.
-- **Real Agent** — Hermes and a real model select and execute tools.
+- **Workflow**：由代码预编排、通过自然语言触发、不使用模型 Key；
+- **Real Agent**：由 Hermes 和真实模型自主选择并执行工具。
 
-Workflow is the project's implementation of the assignment's required Mock
-mode. README and architecture documentation state this explicitly. Existing
-`APP_MODE=mock` remains a supported compatibility/diagnostic setting; public
-run requests use `workflow` and `hermes`, while the backend accepts `mock` as an
-alias for `workflow` during migration.
+Workflow 是笔试要求的 Mock 实现，README 必须明确这一映射。内部继续接受 `mock` 作为兼容
+别名，但公开运行请求使用 `workflow` 或 `hermes`。
 
-The selected runtime affects only new messages. One conversation may contain
-runs from both runtimes. Existing messages and results never change when the
-selection changes.
+## Runtime 可用性与启动
 
-## Runtime availability and startup
+`APP_MODE` 支持：
 
-`APP_MODE` gains three operational values:
+- `auto`（推荐）：始终启用 Workflow；仅在 Hermes 可执行文件和四项必要环境变量完整时启动 Real Agent；
+- `mock`：只启用 Workflow，绝不启动 Hermes；
+- `hermes`：要求 Real Agent 配置完整，缺失时快速失败。
 
-- `auto` (recommended): always enables Workflow; enables and starts Hermes only
-  when the pinned environment and required variables are present.
-- `mock`: enables Workflow only and never starts Hermes.
-- `hermes`: requires Hermes configuration and fails fast when unavailable.
-
-FastAPI owns two runtime capabilities rather than one global run behavior. The
-health response reports each runtime independently:
+健康接口返回每个 Runtime 的能力：
 
 ```json
 {
@@ -49,69 +37,40 @@ health response reports each runtime independently:
 }
 ```
 
-Reasons are stable, localized, and contain no provider URL, model name, path,
-or credential information. A Real Agent request when unavailable returns HTTP
-503 and never silently falls back to Workflow.
+原因文本不得包含路径、供应商 URL 或凭据。Real Agent 不可用时返回 HTTP 503，且不持久化
+用户消息或运行，不静默回退到 Workflow。
 
-`scripts/dev.sh` evaluates availability without printing secret values. Under
-`auto`, it starts the Hermes sidecar only when its executable and the four
-required variables are present. Frontend and FastAPI always start.
+## 运行 API 与持久化
 
-## Run API and persistence
-
-`POST /api/conversations/{id}/runs` accepts:
+`POST /api/conversations/{id}/runs` 接受按消息选择的模式：
 
 ```json
 {"message": "分析 2026-06 飘窗垫的关键词需求", "mode": "workflow"}
 ```
 
-Runs gain a non-null `runtime_mode` column. SQLite initialization adds the
-column to existing databases and backfills historical runs as `workflow` when
-the old process mode was Mock and `hermes` when it was Hermes. New API responses
-include the stored mode. The inline activity card displays the mode so mixed
-conversation history remains understandable.
+`runs.runtime_mode` 存储实际 Runtime。迁移时历史 `mock` 运行归为 `workflow`，历史 Hermes
+运行保持 `hermes`。前端用 `localStorage` 保存用户偏好，并根据健康能力校验；Real Agent
+不可用时自动回到 Workflow。
 
-The frontend stores the selected runtime in local storage. On load, it validates
-the preference against health capabilities and falls back to Workflow when Real
-Agent is unavailable. A segmented control near the composer changes only future
-runs. The left runtime badge describes server capability rather than pretending
-the whole process is in one runtime.
+## Workflow 边界
 
-## Workflow boundary
+- `WorkflowRegistry`：注册定义并根据自然语言选择一个流程；
+- `WorkflowDefinition`：描述名称、触发条件、参数提取、有序步骤和最终渲染；
+- `KeywordAnalysisWorkflow`：本版本唯一正式注册的定义；
+- 现有订单、待办和上下文确定性处理器继续作为 Workflow Runtime 的后备业务流程。
 
-The project adds a small internal workflow package with three responsibilities:
+## 关键词分析 Workflow
 
-- `WorkflowRegistry`: register definitions and select one from natural language.
-- `WorkflowDefinition`: name, trigger, parameter extraction, ordered steps, and
-  final rendering contract.
-- `KeywordAnalysisWorkflow`: the only registered definition in this release.
+### 触发与参数
 
-This is deliberately not a generic agent framework. It does not copy
-AgentScope, `BaseSkill`, LLM planners, validators, or report agents from the
-reference repository. The reusable idea is a named skill with explicit inputs,
-steps, dependencies, structured intermediate results, and observable status.
+当消息包含 `关键词分析`、`关键词需求` 或“分析……关键词”时触发。提取：
 
-Existing order and todo routes remain as lightweight deterministic tool demos.
-They are not presented as additional formal workflows in this release.
+- 月份：支持 `YYYY-MM`、`YYYY年M月` 和当前年份的 `M月`；
+- 类目：本版本合成数据支持 `飘窗垫` 与 `办公背包`。
 
-## Keyword Analysis workflow
+缺少或不支持的参数返回可执行的中文提示，不产生不完整报告。
 
-The public name is exactly `关键词分析`.
-
-### Trigger and parameters
-
-The workflow matches natural-language requests containing combinations such as
-`关键词分析`, `关键词需求`, or `分析…关键词`. It extracts:
-
-- `year_month`: `YYYY-MM`, `YYYY年M月`, or `M月` (using the current year).
-- `category_name`: the supported synthetic category mentioned in the request.
-
-This release seeds at least `飘窗垫` and `办公背包` so the route is demonstrable
-without proprietary data. If the workflow is recognized but required parameters
-are missing, it completes with a clarification message and parameter-extraction
-events; it is not marked as infrastructure failure.
-
-### Ordered steps
+### 有序步骤
 
 1. `识别关键词分析 Workflow`
 2. `提取月份与类目`
@@ -120,82 +79,37 @@ events; it is not marked as infrastructure failure.
 5. `计算趋势与高增长词根`
 6. `生成分析结果`
 
-Each step emits normalized `tool.started` and `tool.completed` events with a
-stable machine tool name, Chinese display label, duration, error flag, and a
-small structured result summary. Full synthetic rows remain server-side or are
-truncated before entering event payloads.
+每个步骤使用现有 `tool.started` 和 `tool.completed` 事件，因此对话内活动卡和右侧 Trace 无需
+新的前端协议。
 
-### Synthetic dataset and analysis
+### 合成数据与分析
 
-The tracked dataset contains invented keyword rows across the eight requirement
-types:
+数据文件只包含虚构的关键词、搜索人气、环比变化和分类标签。八类需求为品类、属性、功能、
+场景、人群、风格、痛点和服务需求。分析计算各类总人气与占比，按环比识别高增长词根，并生成
+简洁结论和行动建议。输出明确说明数据是合成数据，不能用于真实商业决策。
 
-- 品类需求
-- 属性需求
-- 人群需求
-- 风格需求
-- 场景需求
-- 功能需求
-- 品牌需求
-- 定制需求
+## 现有确定性行为
 
-Each row includes category, month, requirement type, word root, search
-popularity, month-over-month growth, and source requirement share. Analysis:
+Workflow 继续支持普通上下文记忆、Mock 订单查询和待办审批。只有正式匹配关键词意图时才进入
+`关键词分析`，避免把整个 Workflow Runtime 错误等同于一个流程。
 
-- group by requirement type;
-- sort each group by search popularity and keep Top 20;
-- sum search popularity per requirement;
-- calculate each requirement's share against the eight-type total;
-- identify high-growth roots where popularity is at least 10,000 and growth is
-  at least 15%;
-- produce deterministic conclusions and action suggestions from the highest
-  share, highest popularity, and highest growth groups.
+## 错误与安全行为
 
-No LLM is used for routing, validation, or report generation. The result is a
-concise readable response; expanded activity details expose normalized counts
-and summaries rather than an enormous raw table.
+- Workflow 使用本地合成数据，不读取私人项目数据或访问网络；
+- Real Agent 不可用时在持久化前返回 HTTP 503；
+- 真实供应商故障沿用脱敏 Hermes 失败处理；
+- Runtime 选择不改变 terminal/file 的审批和路径策略；
+- 失败的 Real Agent 运行不会自动切换到 Workflow，以免掩盖真实失败。
 
-## Existing deterministic behavior
+## 测试策略
 
-Workflow mode continues to support ordinary context recall, mock order lookup,
-and approval-gated todo creation so all original assignment acceptance paths
-remain valid. Keyword Analysis is an additional formal workflow selected before
-the existing intent handlers.
+- Workflow 注册、触发、参数格式、类目/月不存在和确定性计算单元测试；
+- API 按运行选择、`mock` 兼容别名、不可用 Hermes 无持久化测试；
+- `auto`/`mock`/`hermes` 启动契约测试；
+- 前端能力类型、选择持久化、不可用回退和请求体测试；
+- 浏览器验证六步 Trace、混合 Runtime 卡片、刷新恢复和 760px 布局。
 
-## Error and security behavior
+## 排除范围
 
-- Unsupported synthetic category: complete with supported demo categories.
-- Missing month/category: complete with a precise clarification request.
-- Invalid month: complete with accepted formats.
-- Malformed synthetic row or step exception: emit failed tool and `run.failed`
-  with a stable sanitized message.
-- Real Agent unavailable: HTTP 503 before a run or message is persisted.
-- Real provider failures: retain current sanitized Hermes failure handling.
-- Never copy the private data-platform endpoint, authorization logic, prompts,
-  production values, or real business records.
-
-## Test strategy
-
-- Registry selects Keyword Analysis and does not misclassify ordinary chat.
-- Parameter extraction covers ISO and Chinese month formats plus missing data.
-- Dataset is synthetic, contains all eight requirement types, and has no private
-  source strings.
-- Analysis verifies Top 20 ordering, shares sum to approximately 100%, and
-  high-growth filtering.
-- Workflow emits ordered step events and a deterministic final response.
-- Existing order, todo, context, approval, replay, and zero-key tests remain.
-- Per-run runtime selection supports mixed history and persists `runtime_mode`.
-- Unavailable Hermes returns 503 without persistence.
-- Health capability response and `auto`/`mock`/`hermes` startup contracts.
-- Frontend toggle persistence, disabled Real state, request mode, and mixed-run
-  labels.
-- Full backend/frontend tests, production build, release scan, shell syntax,
-  and real-browser switching acceptance.
-
-## Out of scope
-
-- Additional formal workflows beyond Keyword Analysis.
-- Real data-platform access or user-provided dataset upload.
-- LLM-generated Workflow reports, validation agents, or planning.
-- A generic DAG editor, parallel workflow steps, or workflow authoring UI.
-- Automatically switching a failed Real Agent run to Workflow.
+不实现用户自定义 Workflow 编辑器、通用 DAG 引擎、LLM 生成 Workflow 报告、真实关键词数据
+接入、跨 Runtime 自动回退或把 Claude Code Unpacked 十一阶段机械映射为目录。

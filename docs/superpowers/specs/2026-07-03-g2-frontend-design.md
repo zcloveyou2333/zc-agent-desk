@@ -1,79 +1,58 @@
-# G2 Frontend Design
+# G2 前端设计
 
-## Objective
+## 目标
 
-Build a reviewable React interface for the deterministic Mock Runtime. The UI
-must make conversation context, tool execution, approval boundaries, event
-order, and persisted todos understandable during an interview recording.
+为确定性 Mock Runtime 构建可评审的 React 界面。界面必须展示持久化多轮聊天、订单查询、
+待办审批、可重放 Trace 和刷新恢复，同时保持零 Key 启动。
 
-The selected visual direction is a light blue-gray enterprise console. It is
-preferred over a dark developer terminal because the product flow is easier
-for both engineering and non-engineering reviewers to scan.
+设计面向 8–12 分钟面试录屏：信息密度足以证明工程完整性，但不加入登录、文件上传、RAG
+或不属于 G2 的 Hermes 开发者工具。
 
-## Layout
+## 布局
 
-The desktop interface uses three columns:
+桌面使用三栏浅色企业控制台：
 
-1. The left rail contains the ZC Agent Desk identity, `Built by zcloveyou`, the
-   active runtime badge, a new-conversation action, and persisted conversations.
-2. The center workspace contains the active conversation, message stream,
-   inline approval cards, run errors, and message composer.
-3. The right inspector contains the ordered Agent Trace and the persisted todo
-   list. It explains what happened without exposing raw internal logs.
+- 左栏：品牌、Runtime 状态、新建会话和会话列表；
+- 中栏：当前会话、消息流、对话内审批卡和输入框；
+- 右栏：完整 Agent Trace 与已创建待办。
 
-On narrow screens, the columns become a vertical sequence. Conversation and
-composer remain first; Trace and todos follow so the primary task stays usable.
+900px 以下三栏纵向堆叠，聊天保持最高优先级；560px 以下进一步收紧消息和活动卡间距。
 
-## Components and Boundaries
+## 组件与边界
 
-- `App` owns initial loading, active-conversation selection, and API state.
-- `ConversationRail` renders and creates conversations.
-- `ChatWorkspace` renders messages, the composer, pending state, and errors.
-- `ApprovalCard` renders the proposed `create_todo` arguments and sends exactly
-  one approve or reject decision while disabling repeated clicks.
-- `TracePanel` maps normalized run events to human-readable lifecycle rows.
-- `TodoPanel` renders persisted todos returned by the backend.
-- `api.ts` owns HTTP and SSE transport. Components do not construct endpoints
-  or interpret wire-level SSE frames.
+- `App`：加载会话、待办和健康状态，维护当前会话并协调 API。
+- `ConversationRail`：只负责会话导航和创建动作。
+- `ChatWorkspace`：渲染消息、审批和输入状态，不复制后端意图路由。
+- `ApprovalCard`：显示待执行工具及参数，发出 approve/reject 决策。
+- `Inspector`：按事件序号展示 Trace，并列出持久化待办。
+- `api.ts`：封装 HTTP、错误处理和 SSE 重连。
 
-The frontend does not reproduce the Mock Runtime's intent routing. FastAPI
-remains the source of truth for run status, events, approval state, and effects.
+FastAPI 与 SQLite 是事实来源。前端只折叠和展示协议数据，不自行推断业务结果。
 
-## Interaction and Data Flow
+## 交互与数据流
 
-On startup, the client loads conversations. If none exist, it creates one. It
-then loads the selected conversation and todos from SQLite-backed APIs.
+1. 首次加载会话列表；为空时只创建一个默认会话。
+2. 发送消息后调用 `POST /api/conversations/{id}/runs`。
+3. 通过 `/api/runs/{run_id}/events` 接收 SSE，并使用事件序号去重。
+4. `approval.required` 生成对话内卡片；决策完成后刷新会话和待办。
+5. 页面刷新时从 SQLite 恢复消息、运行、事件和审批状态。
 
-Submitting a message creates a run. The client immediately reloads persisted
-state and subscribes to that run's SSE endpoint. Each event is keyed by its
-monotonic sequence. Reconnection sends `Last-Event-ID`, so replayed events do
-not create duplicate Trace rows or message fragments.
+React StrictMode 的开发探针可能重复执行副作用，因此首次初始化需要同步 ref 保护。
 
-An `approval.required` event produces an inline card. Approve or reject calls
-the approval API, disables the card while pending, then reloads the
-conversation and todos. Backend idempotency remains authoritative if a request
-is retried after a network interruption.
+## 错误与无障碍
 
-Refreshing the page reconstructs messages, runs, Trace, pending approvals, and
-todos exclusively from persisted backend state.
+- API 错误以 `role="alert"` 呈现，发送失败后保留输入内容。
+- 审批按钮使用明确的可访问名称，Trace 使用文本而不只依赖颜色。
+- 输入框使用关联 label；加载和在线状态具有可读文字。
+- SSE 重连使用 `Last-Event-ID`，重复事件按序号忽略。
 
-## Errors and Accessibility
+## 验证
 
-Errors belong to the affected run and are shown near the conversation rather
-than as blocking global dialogs. A failed request retains the user's input and
-offers retry. Controls have visible focus states, text labels, and disabled
-states. Status is never communicated by color alone.
+- Mock API 测试覆盖会话、订单存在/不存在、待办批准/拒绝和幂等重放。
+- Vitest 覆盖 API 客户端、首次会话保护、消息提交、审批和 Trace。
+- Vite 生产构建必须通过。
+- 浏览器验收覆盖桌面三栏、760px 响应式布局、刷新恢复和零 Key 启动。
 
-## Verification
+## 排除范围
 
-Component tests cover initial conversation creation, message submission,
-approval and rejection, Trace rendering, and persisted-state restoration. A
-browser acceptance pass covers ordinary chat, existing and missing orders,
-todo approval, todo rejection, refresh recovery, and responsive layout. The
-production build must complete without warnings that affect runtime behavior.
-
-## Exclusions
-
-G2 does not add authentication, deployment, theme switching, message editing,
-file uploads, RAG, or Hermes-specific developer tools. Those would dilute the
-interview's core flow or belong to later gates.
+不实现登录、部署、文件上传、RAG、富文本编辑、多用户权限或 Hermes 专属开发者工具。
