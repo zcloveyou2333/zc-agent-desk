@@ -1,4 +1,5 @@
 import type { RunEvent, Todo } from '../types';
+import { toolLabel } from '../runActivity';
 
 const labels: Record<string, string> = {
   'tool.started': '工具开始',
@@ -22,9 +23,21 @@ export default function Inspector({ events, todos }: { events: RunEvent[]; todos
         <div className="trace-list">
           {displayEvents.length === 0 && <p className="empty-state">发送消息后，这里会显示 Agent 生命周期。</p>}
           {displayEvents.map((event) => (
-            <div className="trace-row" key={`${event.run_id}-${event.sequence}`}>
+            <div
+              className={`trace-row ${event.type === 'run.failed' || (event.type === 'tool.completed' && event.data.error === true) ? 'failed' : ''}`}
+              key={`${event.run_id}-${event.sequence}`}
+            >
               <span className="trace-dot" />
-              <div><strong>{labels[event.type] ?? event.type}</strong><small>#{event.sequence} · {String(event.data.tool ?? '')}</small></div>
+              <div>
+                <strong>{event.type === 'tool.completed' && event.data.error === true ? '工具执行失败' : labels[event.type] ?? event.type}</strong>
+                <small>#{event.sequence}{event.data.tool ? ` · ${toolLabel(String(event.data.tool))}` : ''}</small>
+                {event.type === 'run.failed' && typeof event.data.message === 'string' && (
+                  <details className="trace-error-detail">
+                    <summary>查看失败详情</summary>
+                    <p>{event.data.message}</p>
+                  </details>
+                )}
+              </div>
             </div>
           ))}
         </div>

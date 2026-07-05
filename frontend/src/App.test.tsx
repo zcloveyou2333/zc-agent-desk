@@ -116,6 +116,46 @@ it('submits a message and resolves an approval', async () => {
 
   await user.click(screen.getByRole('button', { name: '批准创建待办' }));
   await waitFor(() => expect(api.decideApproval).toHaveBeenCalledWith('r2', 'approve'));
-  expect(api.getConversation).toHaveBeenCalledTimes(4);
+  await waitFor(() => expect(api.getConversation).toHaveBeenCalledTimes(4));
   expect(api.listTodos).toHaveBeenCalledTimes(2);
+});
+
+it('renders a streamed tool event before the run completes', async () => {
+  const user = userEvent.setup();
+  let finishStream!: () => void;
+  const streamFinished = new Promise<void>((resolve) => { finishStream = resolve; });
+  const runningDetail: ConversationDetail = {
+    ...detail,
+    messages: [
+      ...detail.messages,
+      { id: 'm3', role: 'user', content: '创建待办：检查录屏', run_id: 'r3', created_at: detail.created_at },
+    ],
+    runs: [
+      ...detail.runs,
+      { id: 'r3', conversation_id: 'c1', status: 'running', pending_tool: null, pending_args: null, events: [] },
+    ],
+  };
+  vi.mocked(api.createRun).mockResolvedValue({ run_id: 'r3', status: 'running' });
+  vi.mocked(api.getConversation)
+    .mockResolvedValueOnce(detail)
+    .mockResolvedValue(runningDetail);
+  vi.mocked(api.streamRunEvents).mockImplementation(async (_runId, _cursor, onEvent) => {
+    onEvent({
+      run_id: 'r3',
+      sequence: 1,
+      type: 'tool.started',
+      data: { tool: 'create_todo' },
+      created_at: detail.created_at,
+    });
+    await streamFinished;
+    return 1;
+  });
+
+  render(<App />);
+  await screen.findByText('ZC Agent Desk');
+  await user.type(screen.getByLabelText('发送消息'), '创建待办：检查录屏');
+  await user.click(screen.getByRole('button', { name: '发送' }));
+
+  expect(await screen.findByRole('button', { name: /正在调用 创建待办/ })).toBeInTheDocument();
+  finishStream();
 });

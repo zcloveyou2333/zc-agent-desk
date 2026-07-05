@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
-import type { Conversation, ConversationDetail, Todo } from './types';
+import type { Conversation, ConversationDetail, RunEvent, Todo } from './types';
 import ChatWorkspace from './components/ChatWorkspace';
 import ConversationRail from './components/ConversationRail';
 import Inspector from './components/Inspector';
@@ -64,11 +64,10 @@ export default function App() {
     setError(null);
     try {
       const run = await api.createRun(activeId, message);
+      await loadDetail(activeId);
       if (run.status !== 'awaiting_approval') {
         await api.streamRunEvents(run.run_id, 0, (event) => {
-          if (event.type === 'approval.required') {
-            void loadDetail(activeId);
-          }
+          mergeRunEvent(event);
         });
       }
       await loadDetail(activeId);
@@ -78,6 +77,29 @@ export default function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function mergeRunEvent(event: RunEvent) {
+    setDetail((current) => {
+      if (!current) return current;
+      const runs = current.runs.map((run) => {
+        if (run.id !== event.run_id) return run;
+        if (run.events.some((existing) => existing.sequence === event.sequence)) return run;
+        const events = [...run.events, event].sort((left, right) => left.sequence - right.sequence);
+        if (event.type === 'approval.required') {
+          return {
+            ...run,
+            status: 'awaiting_approval' as const,
+            pending_tool: String(event.data.tool ?? run.pending_tool ?? 'unknown_tool'),
+            pending_args: (event.data.arguments as Record<string, unknown> | undefined) ?? run.pending_args,
+            events,
+          };
+        }
+        if (event.type === 'run.failed') return { ...run, status: 'failed' as const, events };
+        return { ...run, events };
+      });
+      return { ...current, runs };
+    });
   }
 
   async function decide(runId: string, decision: 'approve' | 'reject') {
