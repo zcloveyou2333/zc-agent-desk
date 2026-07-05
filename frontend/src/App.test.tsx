@@ -54,6 +54,7 @@ const detail: ConversationDetail = {
 };
 
 beforeEach(() => {
+  localStorage.clear();
   vi.mocked(api.listConversations).mockResolvedValue([{ id: 'c1', title: '订单与待办', created_at: detail.created_at }]);
   vi.mocked(api.getHealth).mockResolvedValue({
     status: 'ok',
@@ -73,8 +74,8 @@ it('renders persisted chat, trace, pending approval, and todos', async () => {
   render(<App />);
 
   expect(await screen.findByText('ZC Agent Desk')).toBeInTheDocument();
-  expect(screen.getByText('Hermes Runtime')).toBeInTheDocument();
-  expect(screen.getByText('Hermes 模式 · 模型自主选择工具')).toBeInTheDocument();
+  expect(screen.getByText('Workflow + Real')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Workflow' })).toHaveAttribute('aria-pressed', 'true');
   expect(await screen.findByText('订单 ORD-1001 当前状态：已发货。')).toBeInTheDocument();
   expect(screen.getAllByText('等待审批')).toHaveLength(3);
   expect(screen.getByText('周五提交周报')).toBeInTheDocument();
@@ -119,12 +120,43 @@ it('submits a message and resolves an approval', async () => {
 
   await user.type(screen.getByLabelText('发送消息'), '查询订单 ORD-9999');
   await user.click(screen.getByRole('button', { name: '发送' }));
-  await waitFor(() => expect(api.createRun).toHaveBeenCalledWith('c1', '查询订单 ORD-9999'));
+  await waitFor(() => expect(api.createRun).toHaveBeenCalledWith('c1', '查询订单 ORD-9999', 'workflow'));
 
   await user.click(screen.getByRole('button', { name: '批准创建待办' }));
   await waitFor(() => expect(api.decideApproval).toHaveBeenCalledWith('r2', 'approve'));
   await waitFor(() => expect(api.getConversation).toHaveBeenCalledTimes(4));
   expect(api.listTodos).toHaveBeenCalledTimes(2);
+});
+
+it('persists Real Agent selection and sends it with the next message', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByText('ZC Agent Desk');
+
+  await user.click(screen.getByRole('button', { name: 'Real Agent' }));
+  expect(localStorage.getItem('zc-agent-desk.runtime')).toBe('hermes');
+  await user.type(screen.getByLabelText('发送消息'), '真实回答');
+  await user.click(screen.getByRole('button', { name: '发送' }));
+
+  await waitFor(() => expect(api.createRun).toHaveBeenCalledWith('c1', '真实回答', 'hermes'));
+});
+
+it('falls back to Workflow when the stored Real Agent is unavailable', async () => {
+  localStorage.setItem('zc-agent-desk.runtime', 'hermes');
+  vi.mocked(api.getHealth).mockResolvedValue({
+    status: 'ok',
+    mode: 'auto',
+    runtimes: {
+      workflow: { available: true },
+      hermes: { available: false, reason: 'Real Agent 尚未配置' },
+    },
+  });
+
+  render(<App />);
+
+  expect(await screen.findByRole('button', { name: 'Workflow' })).toHaveAttribute('aria-pressed', 'true');
+  expect(localStorage.getItem('zc-agent-desk.runtime')).toBe('workflow');
+  expect(screen.getByText('Real Agent 尚未配置')).toBeInTheDocument();
 });
 
 it('renders a streamed tool event before the run completes', async () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
-import type { Conversation, ConversationDetail, RunEvent, Todo } from './types';
+import type { Conversation, ConversationDetail, Health, RunEvent, RuntimeMode, Todo } from './types';
 import ChatWorkspace from './components/ChatWorkspace';
 import ConversationRail from './components/ConversationRail';
 import Inspector from './components/Inspector';
@@ -12,7 +12,10 @@ export default function App() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [runtimeMode, setRuntimeMode] = useState<'mock' | 'hermes'>('mock');
+  const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>(() =>
+    localStorage.getItem('zc-agent-desk.runtime') === 'hermes' ? 'hermes' : 'workflow',
+  );
+  const [health, setHealth] = useState<Health | null>(null);
   const initialized = useRef(false);
 
   const loadDetail = useCallback(async (id: string) => {
@@ -38,7 +41,14 @@ export default function App() {
     Promise.all([
       refreshConversations(),
       api.listTodos().then(setTodos),
-      api.getHealth().then((health) => setRuntimeMode(health.runtimes.hermes.available ? 'hermes' : 'mock')),
+      api.getHealth().then((nextHealth) => {
+        setHealth(nextHealth);
+        setRuntimeMode((current) => {
+          const next = current === 'hermes' && !nextHealth.runtimes.hermes.available ? 'workflow' : current;
+          localStorage.setItem('zc-agent-desk.runtime', next);
+          return next;
+        });
+      }),
     ]).catch((reason) => {
       setError(reason instanceof Error ? reason.message : '载入失败');
     });
@@ -63,7 +73,7 @@ export default function App() {
     setBusy(true);
     setError(null);
     try {
-      const run = await api.createRun(activeId, message);
+      const run = await api.createRun(activeId, message, runtimeMode);
       await loadDetail(activeId);
       if (run.status !== 'awaiting_approval') {
         await api.streamRunEvents(run.run_id, 0, (event) => {
@@ -115,12 +125,32 @@ export default function App() {
     }
   }
 
+  function selectRuntime(mode: RuntimeMode) {
+    setRuntimeMode(mode);
+    localStorage.setItem('zc-agent-desk.runtime', mode);
+  }
+
   const events = useMemo(() => detail?.runs.flatMap((run) => run.events) ?? [], [detail]);
 
   return (
     <div className="app-shell">
-      <ConversationRail conversations={conversations} activeId={activeId} onSelect={selectConversation} onCreate={createConversation} runtimeMode={runtimeMode} />
-      <ChatWorkspace detail={detail} busy={busy} error={error} onSend={sendMessage} onApproval={decide} runtimeMode={runtimeMode} />
+      <ConversationRail
+        conversations={conversations}
+        activeId={activeId}
+        onSelect={selectConversation}
+        onCreate={createConversation}
+        hermesAvailable={health?.runtimes.hermes.available ?? false}
+      />
+      <ChatWorkspace
+        detail={detail}
+        busy={busy}
+        error={error}
+        onSend={sendMessage}
+        onApproval={decide}
+        runtimeMode={runtimeMode}
+        hermes={health?.runtimes.hermes ?? { available: false, reason: '正在检查 Real Agent' }}
+        onRuntimeChange={selectRuntime}
+      />
       <Inspector events={events} todos={todos} />
     </div>
   );

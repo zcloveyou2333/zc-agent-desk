@@ -20,7 +20,8 @@ const stepState = {
 export default function RunActivityCard({ run }: { run: Run }) {
   const [expanded, setExpanded] = useState(false);
   const activity = summarizeRun(run);
-  const meta = [activity.duration, activity.steps.length ? `${activity.steps.length} 步` : null]
+  const runtimeLabel = run.runtime_mode === 'hermes' ? 'Real Agent' : 'Workflow';
+  const meta = [runtimeLabel, activity.duration, activity.steps.length ? `${activity.steps.length} 步` : null]
     .filter(Boolean)
     .join(' · ');
 

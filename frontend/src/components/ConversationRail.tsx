@@ -5,10 +5,10 @@ interface Props {
   activeId: string | null;
   onSelect: (id: string) => void;
   onCreate: () => void;
-  runtimeMode: 'mock' | 'hermes';
+  hermesAvailable: boolean;
 }
 
-export default function ConversationRail({ conversations, activeId, onSelect, onCreate, runtimeMode }: Props) {
+export default function ConversationRail({ conversations, activeId, onSelect, onCreate, hermesAvailable }: Props) {
   return (
     <aside className="conversation-rail">
       <header className="brand-block">
@@ -18,7 +18,7 @@ export default function ConversationRail({ conversations, activeId, onSelect, on
           <small>Built by zcloveyou</small>
         </div>
       </header>
-      <div className="runtime-badge"><span /> {runtimeMode === 'hermes' ? 'Hermes Runtime' : 'Mock Runtime'}</div>
+      <div className="runtime-badge"><span /> {hermesAvailable ? 'Workflow + Real' : 'Workflow Runtime'}</div>
       <button className="new-conversation" onClick={onCreate}>＋ 新建会话</button>
       <nav aria-label="会话列表">
         <p className="section-label">会话</p>

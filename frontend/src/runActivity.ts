@@ -27,6 +27,12 @@ const TOOL_LABELS: Record<string, string> = {
   write_file: '修改文件',
   patch: '修改文件',
   apply_patch: '修改文件',
+  'workflow.keyword.identify': '识别关键词分析 Workflow',
+  'workflow.keyword.extract': '提取月份与类目',
+  'workflow.keyword.query': '查询合成关键词数据',
+  'workflow.keyword.classify': '分类八大需求',
+  'workflow.keyword.trends': '计算趋势与高增长词根',
+  'workflow.keyword.render': '生成分析结果',
 };
 
 const SENSITIVE_KEY = /key|token|secret|authorization|password/i;

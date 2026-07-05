@@ -1,7 +1,8 @@
 import { FormEvent, Fragment, useState } from 'react';
-import type { ConversationDetail } from '../types';
+import type { ConversationDetail, RuntimeCapability, RuntimeMode } from '../types';
 import ApprovalCard from './ApprovalCard';
 import RunActivityCard from './RunActivityCard';
+import RuntimeSwitch from './RuntimeSwitch';
 
 interface Props {
   detail: ConversationDetail | null;
@@ -9,10 +10,12 @@ interface Props {
   error: string | null;
   onSend: (message: string) => Promise<void>;
   onApproval: (runId: string, decision: 'approve' | 'reject') => Promise<void>;
-  runtimeMode: 'mock' | 'hermes';
+  runtimeMode: RuntimeMode;
+  hermes: RuntimeCapability;
+  onRuntimeChange: (mode: RuntimeMode) => void;
 }
 
-export default function ChatWorkspace({ detail, busy, error, onSend, onApproval, runtimeMode }: Props) {
+export default function ChatWorkspace({ detail, busy, error, onSend, onApproval, runtimeMode, hermes, onRuntimeChange }: Props) {
   const [message, setMessage] = useState('');
 
   async function submit(event: FormEvent) {
@@ -67,6 +70,7 @@ export default function ChatWorkspace({ detail, busy, error, onSend, onApproval,
         {error && <div className="run-error" role="alert">{error}</div>}
       </div>
       <form className="composer" onSubmit={submit}>
+        <RuntimeSwitch value={runtimeMode} hermes={hermes} onChange={onRuntimeChange} />
         <label htmlFor="message-input">发送消息</label>
         <textarea
           id="message-input"
@@ -75,7 +79,7 @@ export default function ChatWorkspace({ detail, busy, error, onSend, onApproval,
           placeholder="试试：查询订单 ORD-1001"
           rows={3}
         />
-        <div><span>{runtimeMode === 'hermes' ? 'Hermes 模式 · 模型自主选择工具' : 'Mock 模式 · 不消耗 API Key'}</span><button disabled={busy || !message.trim()}>{busy ? '处理中…' : '发送'}</button></div>
+        <div className="composer-footer"><span>{runtimeMode === 'hermes' ? 'Real Agent · 模型自主选择工具' : 'Workflow · 预设流程，不消耗 API Key'}</span><button disabled={busy || !message.trim()}>{busy ? '处理中…' : '发送'}</button></div>
       </form>
     </main>
   );
