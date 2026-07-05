@@ -12,8 +12,8 @@ const detail: ConversationDetail = {
   title: '订单与待办',
   created_at: '2026-07-03T10:00:00Z',
   messages: [
-    { id: 'm1', role: 'user', content: '查询订单 ORD-1001', run_id: null, created_at: '2026-07-03T10:00:00Z' },
-    { id: 'm2', role: 'assistant', content: '订单 ORD-1001 当前状态：已发货。', run_id: null, created_at: '2026-07-03T10:00:01Z' },
+    { id: 'm1', role: 'user', content: '查询订单 ORD-1001', run_id: 'r1', created_at: '2026-07-03T10:00:00Z' },
+    { id: 'm2', role: 'assistant', content: '订单 ORD-1001 当前状态：已发货。', run_id: 'r1', created_at: '2026-07-03T10:00:01Z' },
   ],
   runs: [
     {
@@ -76,6 +76,11 @@ it('renders persisted chat, trace, pending approval, and todos', async () => {
   expect(screen.getByText('完成录屏')).toBeInTheDocument();
   expect(screen.getByText('工具开始')).toBeInTheDocument();
   expect(screen.getAllByText('生成回复')).toHaveLength(1);
+  const userMessage = screen.getByText('查询订单 ORD-1001');
+  const activity = screen.getByRole('button', { name: /已完成 1 个工具调用/ });
+  const assistantMessage = screen.getByText('订单 ORD-1001 当前状态：已发货。');
+  expect(userMessage.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(activity.compareDocumentPosition(assistantMessage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
 it('creates the first conversation when storage is empty', async () => {

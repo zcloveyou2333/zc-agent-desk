@@ -1,6 +1,7 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, Fragment, useState } from 'react';
 import type { ConversationDetail } from '../types';
 import ApprovalCard from './ApprovalCard';
+import RunActivityCard from './RunActivityCard';
 
 interface Props {
   detail: ConversationDetail | null;
@@ -22,7 +23,10 @@ export default function ChatWorkspace({ detail, busy, error, onSend, onApproval,
     setMessage('');
   }
 
-  const pendingRuns = detail?.runs.filter((run) => run.status === 'awaiting_approval') ?? [];
+  const linkedRunIds = new Set(detail?.messages.map((item) => item.run_id).filter(Boolean) ?? []);
+  const fallbackPendingRuns = detail?.runs.filter(
+    (run) => run.status === 'awaiting_approval' && !linkedRunIds.has(run.id),
+  ) ?? [];
 
   return (
     <main className="chat-workspace">
@@ -31,13 +35,28 @@ export default function ChatWorkspace({ detail, busy, error, onSend, onApproval,
         <span className="online-state">● 在线</span>
       </header>
       <div className="message-stream" aria-live="polite">
-        {detail?.messages.map((item) => (
-          <article className={`message ${item.role}`} key={item.id}>
-            <span className="message-role">{item.role === 'user' ? '你' : 'ZC'}</span>
-            <div><p>{item.content}</p><time>{new Date(item.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</time></div>
-          </article>
-        ))}
-        {pendingRuns.map((run) => (
+        {detail?.messages.map((item) => {
+          const run = item.role === 'user' && item.run_id
+            ? detail.runs.find((candidate) => candidate.id === item.run_id)
+            : undefined;
+          return (
+            <Fragment key={item.id}>
+              <article className={`message ${item.role}`}>
+                <span className="message-role">{item.role === 'user' ? '你' : 'ZC'}</span>
+                <div><p>{item.content}</p><time>{new Date(item.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</time></div>
+              </article>
+              {run && <RunActivityCard run={run} />}
+              {run?.status === 'awaiting_approval' && (
+                <ApprovalCard
+                  tool={run.pending_tool ?? 'unknown_tool'}
+                  arguments={run.pending_args ?? {}}
+                  onDecision={(decision) => onApproval(run.id, decision)}
+                />
+              )}
+            </Fragment>
+          );
+        })}
+        {fallbackPendingRuns.map((run) => (
           <ApprovalCard
             key={run.id}
             tool={run.pending_tool ?? 'unknown_tool'}

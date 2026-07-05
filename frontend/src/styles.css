@@ -68,6 +68,34 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .approval-actions .secondary { color: #505a6d; background: white; border: 1px solid #d6dce5; }
 .run-error { margin: 16px; padding: 12px; border-radius: 9px; color: #a63232; background: #fff0f0; border: 1px solid #f5c2c2; }
 
+.run-activity { max-width: 560px; margin: 12px 39px 20px; border: 1px solid #dfe5ee; border-radius: 12px; background: #fbfcfe; overflow: hidden; box-shadow: 0 4px 15px rgba(33, 49, 77, .05); }
+.run-activity.success { border-color: #cce8da; background: #f8fdfb; }
+.run-activity.awaiting { border-color: #efcf86; background: #fffcf4; }
+.run-activity.failed { border-color: #f0c4c1; background: #fff8f7; }
+.run-activity-toggle { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 0; color: #263249; background: transparent; text-align: left; }
+.activity-icon { flex: 0 0 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; color: #285fc3; background: #e8f0ff; font-weight: 800; }
+.success .activity-icon { color: #167650; background: #e3f5ec; }
+.awaiting .activity-icon { color: #8a610b; background: #fae9bd; }
+.failed .activity-icon { color: #aa3d36; background: #fbe1df; }
+.activity-summary { flex: 1; min-width: 0; }
+.activity-summary strong, .activity-summary small { display: block; }
+.activity-summary strong { font-size: 12px; }
+.activity-summary small { margin-top: 3px; color: #8994a6; font-size: 9px; }
+.activity-chevron { color: #8792a5; font-size: 12px; }
+.activity-details { border-top: 1px solid #e6eaf0; padding: 10px 14px 12px; }
+.activity-details ol { list-style: none; padding: 0; margin: 0; }
+.activity-step { display: flex; gap: 10px; padding: 8px 0; }
+.step-marker { flex: 0 0 8px; height: 8px; margin-top: 4px; border-radius: 50%; background: #3270db; box-shadow: 0 0 0 3px #deebff; }
+.activity-step.completed .step-marker { background: #229165; box-shadow: 0 0 0 3px #dff3e9; }
+.activity-step.awaiting .step-marker { background: #a9770d; box-shadow: 0 0 0 3px #faedc8; }
+.activity-step.failed .step-marker { background: #bc453e; box-shadow: 0 0 0 3px #f9dfdd; }
+.activity-step strong, .activity-step small { display: block; }
+.activity-step strong { font-size: 11px; }
+.activity-step small { margin-top: 3px; color: #8994a6; font-size: 9px; }
+.activity-step code { display: block; max-height: 120px; overflow: auto; margin-top: 7px; padding: 8px; border: 1px solid #e1e6ed; border-radius: 7px; color: #4c586d; background: white; font-size: 9px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.activity-error-detail { margin: 0 0 8px; color: #9f3d37; font-size: 11px; }
+.activity-empty { margin: 0; color: #8994a6; font-size: 11px; }
+
 .composer { margin: 0 clamp(20px, 4vw, 58px) 25px; border: 1px solid #d9e0ea; border-radius: 14px; background: white; box-shadow: 0 10px 30px rgba(32, 52, 83, .09); overflow: hidden; }
 .composer label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .composer textarea { width: 100%; resize: none; border: 0; padding: 15px 17px 6px; color: #263249; background: transparent; outline: none; }
@@ -110,4 +138,5 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   .message-stream { padding: 20px 15px; }
   .message { max-width: 94%; }
   .workspace-header { padding: 20px; }
+  .run-activity { margin-left: 0; margin-right: 0; }
 }
